@@ -10,6 +10,7 @@
         "laravel/ai": "^0.10.1",
         "laravel/framework": "^13.8",
         "laravel/mcp": "^0.9.1",
+        "laravel/passport": "^13.7",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0"
     },

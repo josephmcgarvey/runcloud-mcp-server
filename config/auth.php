@@ -42,6 +42,17 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        /*
+         * Passport guard, used by Claude Desktop and any other MCP client that authenticates
+         * through the OAuth flow. Sanctum registers its own guard automatically, so the /mcp
+         * route accepts either: OAuth for connector-style clients, plain bearer tokens for
+         * scripts and CLI clients.
+         */
+        'api' => [
+            'driver' => 'passport',
+            'provider' => 'users',
+        ],
     ],
 
     /*
