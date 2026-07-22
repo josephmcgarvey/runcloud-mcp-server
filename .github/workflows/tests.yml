@@ -42,6 +42,7 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
+          php artisan passport:keys --no-interaction
 
       - name: Run tests
         run: php artisan test

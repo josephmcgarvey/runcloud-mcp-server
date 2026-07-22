@@ -91,10 +91,31 @@ claude mcp add --transport http runcloud https://your-app.example.com/mcp \
   --header "Authorization: Bearer YOUR_SANCTUM_TOKEN"
 ```
 
-> **Status:** the HTTP transport is implemented and the route is registered, but it has not yet been
-> exercised end-to-end against a deployed instance. Claude Desktop's custom connectors expect an
-> OAuth flow rather than a static bearer header; `laravel/mcp` supports this via `Mcp::oauthRoutes()`,
-> which this project does not yet configure. Contributions welcome.
+### Claude Desktop (OAuth)
+
+Claude Desktop's custom connectors only speak OAuth — there is no field for a static bearer token —
+so Sanctum alone cannot serve them. [Laravel Passport](https://laravel.com/docs/passport) provides
+the OAuth server, and `Mcp::oauthRoutes()` publishes discovery and dynamic client registration.
+
+Point Claude Desktop at `https://your-app.example.com/mcp` under
+**Settings → Connectors → Add custom connector**. It discovers the authorization server, registers
+itself, and sends you through an approval screen.
+
+The `/mcp` route accepts both guards, declared in this order:
+
+```php
+->middleware('auth:sanctum,api')
+```
+
+**The order matters.** Passport's guard aborts the chain when it cannot resolve a token, so listing
+it first causes valid Sanctum tokens to be rejected. With Sanctum first, personal access tokens
+authenticate directly and anything Sanctum cannot resolve falls through to Passport. A test pins
+this behaviour.
+
+> **Status:** the server side is verified — discovery documents, `WWW-Authenticate` challenges,
+> 401 handling, and Sanctum authentication are all covered by tests. A full Claude Desktop OAuth
+> handshake has not yet been completed end-to-end. Passport's approval screen requires a logged-in
+> web session, and this application ships no login UI, so that flow may need a minimal login route.
 
 **Never expose `/mcp` without authentication.** Anyone who can reach it can control your servers.
 
@@ -193,6 +214,22 @@ drift away from the code.
 This is an ordinary Laravel application and deploys anywhere Laravel runs, including
 [Laravel Cloud](https://cloud.laravel.com). Set `RUNCLOUD_API_TOKEN` and `APP_URL`, run migrations,
 and ensure `/mcp` sits behind authentication.
+
+**Passport keys are not in the repository.** They live in `storage/oauth-*.key`, which is
+gitignored because a private key must never be committed. Every environment needs its own, so your
+deploy pipeline must run:
+
+```bash
+php artisan passport:keys
+```
+
+Alternatively, supply them as `PASSPORT_PRIVATE_KEY` and `PASSPORT_PUBLIC_KEY` environment
+variables. Without keys, Passport throws `LogicException: Invalid key supplied` and every request
+to `/mcp` returns 500 rather than a 401.
+
+`APP_URL` must match the public hostname. OAuth discovery advertises endpoints derived from it, and
+clients reject an authorization server served over plain HTTP. Behind a TLS-terminating proxy the
+application trusts `X-Forwarded-*` headers so generated URLs use `https`.
 
 ## Coverage
 
