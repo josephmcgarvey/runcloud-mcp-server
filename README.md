@@ -121,7 +121,7 @@ this behaviour.
 
 ## Available tools
 
-Twenty-eight tools. Read and destructive operations are deliberately split into separate tools so
+Thirty-five tools. Read and destructive operations are deliberately split into separate tools so
 that MCP annotations stay accurate.
 
 ### Read-only
@@ -137,6 +137,8 @@ that MCP annotations stay accurate.
 | `runcloud-ssl` | `status`, `method` (basic vs advanced, AutoSSL) |
 | `runcloud-system-users` | `list`, `get` |
 | `runcloud-git` | Repository, branch, auto-deploy state, deployment script |
+| `runcloud-cron` | `list`, `get` |
+| `runcloud-supervisor` | `list`, `get`, `status` (live process states) |
 
 ### Write
 
@@ -147,6 +149,8 @@ that MCP annotations stay accurate.
 | `runcloud-create-database` | RunCloud cannot rename a database afterwards |
 | `runcloud-create-database-user` | Generates a strong password; returned exactly once |
 | `runcloud-add-domain` | Configures neither DNS nor HTTPS |
+| `runcloud-create-cron` | Takes a normal five-field cron expression |
+| `runcloud-create-supervisor` | Long-running processes such as queue workers |
 
 ### Destructive — require `confirm=true`
 
@@ -155,6 +159,7 @@ that MCP annotations stay accurate.
 | `runcloud-control-service` | `start`, `stop`, `restart`, `reload`. Only `stop`/`restart` need confirmation |
 | `runcloud-database-grant` | `grant` needs no confirmation; `revoke` does |
 | `runcloud-database-user-password` | Resets a password, breaking apps using the old one |
+| `runcloud-toggle-cron` | Flips state; re-reads the job first to avoid inverting the intent |
 | `runcloud-git-clone` | Writes into the live application root |
 | `runcloud-git-deploy` | `deploy` (runs the script) or `branch` (switches branches) |
 | `runcloud-git-deploy-script` | Replaces the script outright; can enable auto-deploy |
@@ -165,6 +170,8 @@ that MCP annotations stay accurate.
 | `runcloud-delete-database-user` | |
 | `runcloud-delete-domain` | Also requires a matching `domainName` |
 | `runcloud-delete-ssl` | HTTPS stops working |
+| `runcloud-delete-cron` | Also requires a matching `label` |
+| `runcloud-delete-supervisor` | Also requires a matching `label`; queued work stops |
 | `runcloud-delete-server` | Also requires a matching `serverName` |
 
 ## Safety model
@@ -251,7 +258,7 @@ Currently implemented: servers, web applications (create custom and WordPress, l
 services, databases, database users, domains, basic SSL, and system users (read only).
 
 Not yet implemented: web application settings changes, cloning and alias apps, advanced per-domain
-SSL, system user management, cron jobs, supervisor, and script installers. These follow the same
+SSL, system user management, backups, firewall rules, and script installers. These follow the same
 pattern — a tool class calling `RunCloudClient` — and the client and test scaffolding are reusable
 as-is.
 

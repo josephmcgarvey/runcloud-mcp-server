@@ -5,18 +5,23 @@ namespace App\Mcp\Servers;
 use App\Mcp\Tools\AddDomainTool;
 use App\Mcp\Tools\CloneGitRepositoryTool;
 use App\Mcp\Tools\ControlServiceTool;
+use App\Mcp\Tools\CreateCronJobTool;
 use App\Mcp\Tools\CreateDatabaseTool;
 use App\Mcp\Tools\CreateDatabaseUserTool;
+use App\Mcp\Tools\CreateSupervisorJobTool;
 use App\Mcp\Tools\CreateWebAppTool;
 use App\Mcp\Tools\CreateWordPressWebAppTool;
+use App\Mcp\Tools\CronJobsTool;
 use App\Mcp\Tools\DatabaseGrantTool;
 use App\Mcp\Tools\DatabasesTool;
 use App\Mcp\Tools\DatabaseUsersTool;
+use App\Mcp\Tools\DeleteCronJobTool;
 use App\Mcp\Tools\DeleteDatabaseTool;
 use App\Mcp\Tools\DeleteDatabaseUserTool;
 use App\Mcp\Tools\DeleteDomainTool;
 use App\Mcp\Tools\DeleteServerTool;
 use App\Mcp\Tools\DeleteSslTool;
+use App\Mcp\Tools\DeleteSupervisorJobTool;
 use App\Mcp\Tools\DeleteWebAppTool;
 use App\Mcp\Tools\DomainsTool;
 use App\Mcp\Tools\GitDeployScriptTool;
@@ -27,7 +32,9 @@ use App\Mcp\Tools\RemoveGitRepositoryTool;
 use App\Mcp\Tools\ServersTool;
 use App\Mcp\Tools\ServicesTool;
 use App\Mcp\Tools\SslTool;
+use App\Mcp\Tools\SupervisorTool;
 use App\Mcp\Tools\SystemUsersTool;
+use App\Mcp\Tools\ToggleCronJobTool;
 use App\Mcp\Tools\UpdateDatabaseUserPasswordTool;
 use App\Mcp\Tools\WebAppsTool;
 use Laravel\Mcp\Server;
@@ -47,6 +54,15 @@ one. Web app tools additionally need a webappId from runcloud-webapps.
 Service names: runcloud-control-service identifies services by their systemd unit name (realName),
 not their display name — NGiNX is "nginx-rc" and MariaDB is "mysql". Always call runcloud-services
 first to read the exact realName rather than guessing it.
+
+Scheduled and background work: cron jobs run on a schedule, Supervisor jobs run continuously.
+Both execute as a system user, so pick it with runcloud-system-users — the usual cause of a job
+that silently does nothing is the wrong user or a relative path, since these run with a minimal
+environment rather than an interactive shell. runcloud-toggle-cron flips the current state rather
+than setting it, so always read the job first. After creating a Supervisor job, check
+runcloud-supervisor (action: status): a broken command reports FATAL there rather than failing the
+create call. Failures in this area are quiet by nature — nothing raises an error when scheduled
+work simply stops happening.
 
 Git deployment: the deployment script is arbitrary shell run on the server as the application's
 system user, and setting it replaces the previous script outright. Never compose one from a vague
@@ -99,6 +115,8 @@ class RunCloudServer extends Server
         SslTool::class,
         SystemUsersTool::class,
         GitTool::class,
+        CronJobsTool::class,
+        SupervisorTool::class,
         ControlServiceTool::class,
         CloneGitRepositoryTool::class,
         GitDeployTool::class,
@@ -107,6 +125,9 @@ class RunCloudServer extends Server
         CreateWordPressWebAppTool::class,
         CreateDatabaseTool::class,
         CreateDatabaseUserTool::class,
+        CreateCronJobTool::class,
+        CreateSupervisorJobTool::class,
+        ToggleCronJobTool::class,
         DatabaseGrantTool::class,
         UpdateDatabaseUserPasswordTool::class,
         AddDomainTool::class,
@@ -117,6 +138,8 @@ class RunCloudServer extends Server
         DeleteDomainTool::class,
         DeleteSslTool::class,
         RemoveGitRepositoryTool::class,
+        DeleteCronJobTool::class,
+        DeleteSupervisorJobTool::class,
         DeleteServerTool::class,
     ];
 
