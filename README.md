@@ -121,8 +121,8 @@ this behaviour.
 
 ## Available tools
 
-Fourteen tools across four resource groups. Read and destructive operations are deliberately split
-into separate tools so that MCP annotations stay accurate.
+Twenty-eight tools. Read and destructive operations are deliberately split into separate tools so
+that MCP annotations stay accurate.
 
 ### Read-only
 
@@ -136,6 +136,7 @@ into separate tools so that MCP annotations stay accurate.
 | `runcloud-domains` | `list`, `get` |
 | `runcloud-ssl` | `status`, `method` (basic vs advanced, AutoSSL) |
 | `runcloud-system-users` | `list`, `get` |
+| `runcloud-git` | Repository, branch, auto-deploy state, deployment script |
 
 ### Write
 
@@ -154,6 +155,10 @@ into separate tools so that MCP annotations stay accurate.
 | `runcloud-control-service` | `start`, `stop`, `restart`, `reload`. Only `stop`/`restart` need confirmation |
 | `runcloud-database-grant` | `grant` needs no confirmation; `revoke` does |
 | `runcloud-database-user-password` | Resets a password, breaking apps using the old one |
+| `runcloud-git-clone` | Writes into the live application root |
+| `runcloud-git-deploy` | `deploy` (runs the script) or `branch` (switches branches) |
+| `runcloud-git-deploy-script` | Replaces the script outright; can enable auto-deploy |
+| `runcloud-git-remove` | Also requires a matching `repository` |
 | `runcloud-install-ssl` | Let's Encrypt or custom. Prefer the `staging` environment while testing |
 | `runcloud-delete-webapp` | |
 | `runcloud-delete-database` | `deleteUser` defaults to `false` |
@@ -246,9 +251,15 @@ Currently implemented: servers, web applications (create custom and WordPress, l
 services, databases, database users, domains, basic SSL, and system users (read only).
 
 Not yet implemented: web application settings changes, cloning and alias apps, advanced per-domain
-SSL, system user management, cron jobs, supervisor, deployments and Git, and script installers.
-These follow the same pattern — a tool class calling `RunCloudClient` — and the client and test
-scaffolding are reusable as-is.
+SSL, system user management, cron jobs, supervisor, and script installers. These follow the same
+pattern — a tool class calling `RunCloudClient` — and the client and test scaffolding are reusable
+as-is.
+
+### API key permissions
+
+RunCloud scopes API keys per resource type. A key that can list servers may still be refused on
+Git, returning `403`. If a tool reports that the key lacks permission, enable the relevant scope
+under **Workspace → Settings → API Key** rather than assuming the tool is broken.
 
 ## Security
 

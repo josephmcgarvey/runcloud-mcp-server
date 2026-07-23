@@ -3,6 +3,7 @@
 namespace App\Mcp\Servers;
 
 use App\Mcp\Tools\AddDomainTool;
+use App\Mcp\Tools\CloneGitRepositoryTool;
 use App\Mcp\Tools\ControlServiceTool;
 use App\Mcp\Tools\CreateDatabaseTool;
 use App\Mcp\Tools\CreateDatabaseUserTool;
@@ -18,7 +19,11 @@ use App\Mcp\Tools\DeleteServerTool;
 use App\Mcp\Tools\DeleteSslTool;
 use App\Mcp\Tools\DeleteWebAppTool;
 use App\Mcp\Tools\DomainsTool;
+use App\Mcp\Tools\GitDeployScriptTool;
+use App\Mcp\Tools\GitDeployTool;
+use App\Mcp\Tools\GitTool;
 use App\Mcp\Tools\InstallSslTool;
+use App\Mcp\Tools\RemoveGitRepositoryTool;
 use App\Mcp\Tools\ServersTool;
 use App\Mcp\Tools\ServicesTool;
 use App\Mcp\Tools\SslTool;
@@ -42,6 +47,15 @@ one. Web app tools additionally need a webappId from runcloud-webapps.
 Service names: runcloud-control-service identifies services by their systemd unit name (realName),
 not their display name — NGiNX is "nginx-rc" and MariaDB is "mysql". Always call runcloud-services
 first to read the exact realName rather than guessing it.
+
+Git deployment: the deployment script is arbitrary shell run on the server as the application's
+system user, and setting it replaces the previous script outright. Never compose one from a vague
+instruction — ask the user for the exact commands and show them the full script before writing it.
+Read the existing configuration with runcloud-git first, both to get the gitId and to avoid
+silently discarding a script that is already there. Deploying commonly runs database migrations,
+which are not automatically reversible, so describe what the script actually does rather than
+describing the deploy in the abstract. Enabling autoDeploy means every push to the tracked branch
+runs that script on the live site with no further review; say so plainly when turning it on.
 
 Creating web applications: a web application runs as a system user and lives in that user's home
 directory, so check runcloud-system-users first rather than defaulting everything to the runcloud
@@ -84,7 +98,11 @@ class RunCloudServer extends Server
         DomainsTool::class,
         SslTool::class,
         SystemUsersTool::class,
+        GitTool::class,
         ControlServiceTool::class,
+        CloneGitRepositoryTool::class,
+        GitDeployTool::class,
+        GitDeployScriptTool::class,
         CreateWebAppTool::class,
         CreateWordPressWebAppTool::class,
         CreateDatabaseTool::class,
@@ -98,6 +116,7 @@ class RunCloudServer extends Server
         DeleteDatabaseUserTool::class,
         DeleteDomainTool::class,
         DeleteSslTool::class,
+        RemoveGitRepositoryTool::class,
         DeleteServerTool::class,
     ];
 

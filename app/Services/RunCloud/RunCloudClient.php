@@ -84,6 +84,17 @@ class RunCloudClient
      *
      * @throws RunCloudException
      */
+    public function put(string $path, array $payload = []): array
+    {
+        return $this->send('put', $path, $payload);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     *
+     * @throws RunCloudException
+     */
     public function delete(string $path, array $payload = []): array
     {
         return $this->send('delete', $path, $payload);

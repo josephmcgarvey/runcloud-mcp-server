@@ -81,6 +81,24 @@ class RunCloudClientTest extends TestCase
         }
     }
 
+    /**
+     * RunCloud scopes API keys per resource type, so a 403 usually means the key is missing a
+     * permission rather than that the caller got the request wrong. The message has to say so, or
+     * the failure reads as a bug in the tool.
+     */
+    public function test_it_points_at_api_key_permissions_on_a_forbidden_response(): void
+    {
+        Http::fake(['*' => Http::response(['message' => 'This action is unauthorized.'], 403)]);
+
+        try {
+            $this->client()->get('servers/1/webapps/1/git');
+            $this->fail('Expected a RunCloudException.');
+        } catch (RunCloudException $e) {
+            $this->assertSame(403, $e->status);
+            $this->assertStringContainsString('API Key', $e->getMessage());
+        }
+    }
+
     public function test_it_reports_rate_limiting_distinctly(): void
     {
         Http::fake(['*' => Http::response(['message' => 'Too Many Attempts.'], 429)]);

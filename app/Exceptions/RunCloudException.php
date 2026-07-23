@@ -29,7 +29,9 @@ class RunCloudException extends Exception
 
         $message = match ($status) {
             401 => 'RunCloud authentication failed. Check RUNCLOUD_API_TOKEN.',
-            403 => 'RunCloud denied this request. The token lacks permission for this resource.',
+            403 => 'RunCloud denied this request. The API key lacks permission for this resource — '.
+                'RunCloud scopes keys per resource type, so check the key\'s enabled permissions '.
+                'under Workspace > Settings > API Key.',
             404 => 'The requested RunCloud resource does not exist.',
             429 => 'RunCloud rate limit exceeded. Retry after a short delay.',
             default => $body['message'] ?? "RunCloud API request failed with status {$status}.",
