@@ -12,6 +12,8 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 #[IsDestructive]
 class DeleteSystemUserTool extends RunCloudTool
 {
+    protected bool $removesData = true;
+
     protected string $description = <<<'TEXT'
     Permanently delete a Linux system user from a server.
 

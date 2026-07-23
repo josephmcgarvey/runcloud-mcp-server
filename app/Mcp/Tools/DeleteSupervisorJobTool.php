@@ -12,6 +12,8 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 #[IsDestructive]
 class DeleteSupervisorJobTool extends RunCloudTool
 {
+    protected bool $removesData = true;
+
     protected string $description = <<<'TEXT'
     Permanently delete a Supervisor job and stop its processes.
 

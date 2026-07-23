@@ -12,6 +12,8 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 #[IsDestructive]
 class DeleteSslTool extends RunCloudTool
 {
+    protected bool $removesData = true;
+
     protected string $description = <<<'TEXT'
     Remove the SSL certificate from a web application.
 

@@ -12,6 +12,8 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 #[IsDestructive]
 class DeleteCronJobTool extends RunCloudTool
 {
+    protected bool $removesData = true;
+
     protected string $description = <<<'TEXT'
     Permanently delete a cron job.
 

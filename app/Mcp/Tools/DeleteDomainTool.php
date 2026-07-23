@@ -12,6 +12,8 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 #[IsDestructive]
 class DeleteDomainTool extends RunCloudTool
 {
+    protected bool $removesData = true;
+
     protected string $description = <<<'TEXT'
     Remove a domain name from a web application.
 

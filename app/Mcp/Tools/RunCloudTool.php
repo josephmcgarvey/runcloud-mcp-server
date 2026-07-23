@@ -17,7 +17,56 @@ use Laravel\Mcp\Server\Tool;
  */
 abstract class RunCloudTool extends Tool
 {
+    /**
+     * Profiles in increasing order of capability.
+     *
+     * @var list<string>
+     */
+    public const PROFILES = ['readonly', 'standard', 'full'];
+
+    /**
+     * Whether this tool destroys something that cannot be recreated from the API.
+     *
+     * Distinct from the destructive annotation: restarting a service is disruptive but recoverable,
+     * whereas deleting a database is not. Only tools flagged here are withheld from the standard
+     * profile.
+     */
+    protected bool $removesData = false;
+
     public function __construct(protected readonly RunCloudClient $client) {}
+
+    /**
+     * Withhold tools the configured profile does not permit.
+     *
+     * An unregistered tool is absent from the client's schema entirely, so the model cannot call it
+     * however it is prompted.
+     */
+    public function shouldRegister(): bool
+    {
+        $profile = (string) config('runcloud.profile', 'standard');
+
+        return match ($profile) {
+            'readonly' => $this->isReadOnly(),
+            'full' => true,
+            default => ! $this->removesData,
+        };
+    }
+
+    /**
+     * Whether this tool carries the read-only annotation.
+     */
+    public function isReadOnly(): bool
+    {
+        return (bool) ($this->toArray()['annotations']['readOnlyHint'] ?? false);
+    }
+
+    /**
+     * Whether this tool destroys data irreversibly.
+     */
+    public function removesData(): bool
+    {
+        return $this->removesData;
+    }
 
     public function handle(Request $request): Response
     {

@@ -121,7 +121,7 @@ this behaviour.
 
 ## Available tools
 
-Forty-two tools. Read and destructive operations are deliberately split into separate tools so
+Forty-one tools, subject to the configured [profile](#tool-profiles). Read and destructive operations are deliberately split into separate tools so
 that MCP annotations stay accurate.
 
 ### Read-only
@@ -179,12 +179,40 @@ that MCP annotations stay accurate.
 | `runcloud-delete-cron` | Also requires a matching `label` |
 | `runcloud-delete-supervisor` | Also requires a matching `label`; queued work stops |
 | `runcloud-delete-system-user` | Refuses while the user still owns web apps |
-| `runcloud-delete-server` | Also requires a matching `serverName` |
+
+## Tool profiles
+
+Every registered tool's schema is sent to the client on each request, so the tool list has a
+standing context cost. It is also the outer boundary on what the model can do at all: a tool that
+is not registered cannot be called, whatever the prompt says.
+
+Set `RUNCLOUD_MCP_PROFILE` in `.env`:
+
+| Profile | Tools | Approx. context | Allows |
+| --- | --- | --- | --- |
+| `readonly` | 12 | ~4,200 tokens | Nothing that changes anything |
+| `standard` *(default)* | 32 | ~12,200 tokens | Reads, creation, modification, service control |
+| `full` | 41 | ~14,700 tokens | Everything, including deletions |
+
+`standard` withholds the nine tools that destroy something the API cannot recreate. It still allows
+restarting services, deploying, and changing settings — those are disruptive but recoverable.
+
+An unrecognised value falls back to `standard`, so a typo cannot silently widen access.
+
+### Deleting servers
+
+There is no tool for it, under any profile. `DELETE /servers/{id}` exists in the RunCloud API and is
+deliberately not exposed here: destroying an entire machine is not an operation worth reaching
+through a language model, and no confirmation argument makes it safe enough to be worth the risk. A
+test asserts the tool has not been reintroduced.
 
 ## Safety model
 
-Four independent layers, because a language model calling infrastructure APIs will eventually
+Five independent layers, because a language model calling infrastructure APIs will eventually
 misread an instruction.
+
+**Profiles.** The narrowest layer, and the only one that does not depend on the model behaving
+reasonably: a withheld tool is absent from the schema entirely. See [Tool profiles](#tool-profiles).
 
 **Annotations.** Tools are marked `readOnlyHint` or `destructiveHint` so the client can warn before
 running them. This is only a hint — a model can still call the tool — which is why the other layers

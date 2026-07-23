@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Mcp\Servers\RunCloudServer;
 use App\Mcp\Tools\ControlServiceTool;
-use App\Mcp\Tools\DeleteServerTool;
 use App\Mcp\Tools\DeleteWebAppTool;
 use App\Mcp\Tools\RunCloudTool;
 use App\Mcp\Tools\ServersTool;
@@ -66,7 +65,7 @@ class RunCloudToolsTest extends TestCase
 
     public function test_destructive_tools_are_annotated_as_such(): void
     {
-        foreach ([ControlServiceTool::class, DeleteWebAppTool::class, DeleteServerTool::class] as $tool) {
+        foreach ([ControlServiceTool::class, DeleteWebAppTool::class] as $tool) {
             $this->assertTrue(
                 app($tool)->toArray()['annotations']['destructiveHint'] ?? false,
                 "[{$tool}] must carry the destructive annotation so clients can warn the user."
@@ -243,35 +242,24 @@ class RunCloudToolsTest extends TestCase
         );
     }
 
-    public function test_it_refuses_to_delete_a_server_when_the_name_does_not_match(): void
+    /**
+     * Server deletion was removed deliberately rather than guarded. Nothing this server exposes
+     * should be able to destroy an entire machine, so the tool must not come back.
+     */
+    public function test_no_tool_can_delete_an_entire_server(): void
     {
-        Http::fake(['*' => Http::response(['id' => 10101, 'name' => 'production-web-01'])]);
+        $this->assertFileDoesNotExist(
+            app_path('Mcp/Tools/DeleteServerTool.php'),
+            'DeleteServerTool was removed on purpose and must not be reintroduced.'
+        );
 
-        RunCloudServer::tool(DeleteServerTool::class, [
-            'serverId' => 10101,
-            'serverName' => 'staging-web-01',
-            'confirm' => true,
-        ])->assertHasErrors()
-            ->assertSee("server 10101 is named 'production-web-01'");
-
-        Http::assertNotSent(fn ($request): bool => $request->method() === 'DELETE');
-    }
-
-    public function test_it_deletes_a_server_when_the_name_matches(): void
-    {
-        Http::fake([
-            'https://manage.runcloud.io/api/v3/servers/10101' => Http::sequence()
-                ->push(['id' => 10101, 'name' => 'production-web-01'])
-                ->push([]),
-        ]);
-
-        RunCloudServer::tool(DeleteServerTool::class, [
-            'serverId' => 10101,
-            'serverName' => 'production-web-01',
-            'confirm' => true,
-        ])->assertOk()->assertHasNoErrors();
-
-        Http::assertSent(fn ($request): bool => $request->method() === 'DELETE');
+        foreach (self::registeredTools() as $tool) {
+            $this->assertStringNotContainsString(
+                'delete-server',
+                app($tool)->name(),
+                'No registered tool may delete a server.'
+            );
+        }
     }
 
     public function test_it_surfaces_a_runcloud_api_failure_as_a_tool_error(): void
