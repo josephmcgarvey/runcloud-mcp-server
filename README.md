@@ -103,8 +103,9 @@ so Sanctum alone cannot serve them. [Laravel Passport](https://laravel.com/docs/
 the OAuth server, and `Mcp::oauthRoutes()` publishes discovery and dynamic client registration.
 
 Point Claude Desktop at `https://your-app.example.com/mcp` under
-**Settings → Connectors → Add custom connector**. It discovers the authorization server, registers
-itself, and sends you through an approval screen.
+**Settings → Connectors → Add custom connector**, leaving the OAuth client fields blank — the
+server supports dynamic registration, so it configures itself. It discovers the authorization
+server, registers, and sends you through sign-in and an approval screen.
 
 The `/mcp` route accepts both guards, declared in this order:
 
@@ -132,11 +133,29 @@ php artisan tinker --execute 'App\Models\User::create([
 ]);'
 ```
 
-> **Status:** the OAuth flow has been exercised end-to-end locally — dynamic client registration,
-> guest redirect to login, sign-in, consent screen, approval, and an authorization code returned to
-> the callback. It has not yet been run against a deployed instance from Claude Desktop itself.
+This flow is verified working with Claude Desktop against a live deployment: discovery, dynamic
+client registration, the redirect to sign in, the consent screen, approval, and a connected server.
+
+### When the connector will not register
+
+Claude Desktop reports the same message — *"Couldn't register with … sign-in service"* — whether the
+server refused registration or was never reached at all, so start by ruling out the network path:
+
+```bash
+curl https://your-app.example.com/.well-known/oauth-authorization-server
+```
+
+JSON with an `issuer` field means the path is open and the problem is in OAuth. A timeout or
+connection refused means the request is not arriving, and nothing in this application can fix it.
+Behind a reverse proxy, check the proxy points at the port the application actually listens on —
+a proxy that is publicly reachable but forwarding to the wrong port fails exactly this way.
+
+Then confirm `APP_URL` matches the public hostname. Every endpoint in the discovery document is
+derived from it, so a stale value sends the client somewhere that does not answer.
 
 **Never expose `/mcp` without authentication.** Anyone who can reach it can control your servers.
+Note that the login page is public by necessity — it is where the OAuth redirect lands — so any
+account on this application should have a strong password.
 
 ## Available tools
 
