@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Tools;
 
+use App\Mcp\Tools\Concerns\InteractsWithFirewallRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -12,6 +13,8 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 #[IsReadOnly]
 class FirewallTool extends RunCloudTool
 {
+    use InteractsWithFirewallRules;
+
     protected string $description = <<<'TEXT'
     List the server firewall rules: which ports are open, to which addresses, and whether each rule
     accepts or rejects.
@@ -41,34 +44,12 @@ class FirewallTool extends RunCloudTool
             'serverId' => 'required|integer|min:1',
         ]);
 
-        $rules = $this->normaliseRules(
-            $this->client->get("servers/{$request->get('serverId')}/security/firewalls")
-        );
+        $rules = $this->firewallRules($request->get('serverId'));
 
         return Response::json([
             'rules' => $rules,
             'summary' => $this->summarise($rules),
         ]);
-    }
-
-    /**
-     * RunCloud returns firewall rules as a bare list rather than in a data envelope, and a single
-     * rule as a bare object. Normalise both to a list.
-     *
-     * @param  array<array-key, mixed>  $payload
-     * @return list<array<string, mixed>>
-     */
-    protected function normaliseRules(array $payload): array
-    {
-        if (array_key_exists('data', $payload) && is_array($payload['data'])) {
-            $payload = $payload['data'];
-        }
-
-        if (array_key_exists('id', $payload)) {
-            return [$payload];
-        }
-
-        return array_values(array_filter($payload, 'is_array'));
     }
 
     /**

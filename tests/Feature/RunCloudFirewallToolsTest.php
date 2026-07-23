@@ -36,9 +36,31 @@ class RunCloudFirewallToolsTest extends TestCase
         ];
     }
 
+    /**
+     * Fake the firewall endpoint.
+     *
+     * Rules are served on page one only; later pages come back empty so the paginating read
+     * terminates. Writes are matched by method rather than URL because the read now carries a
+     * ?page= query string.
+     *
+     * @param  list<array<string, mixed>>|null  $rules
+     */
+    protected function fakeFirewall(?array $rules = null, array $writeResponse = ['ok' => true]): void
+    {
+        $rules ??= $this->rules();
+
+        Http::fake(function ($request) use ($rules, $writeResponse) {
+            if ($request->method() !== 'GET') {
+                return Http::response($writeResponse);
+            }
+
+            return Http::response(str_contains($request->url(), 'page=1') ? $rules : []);
+        });
+    }
+
     public function test_it_lists_rules_and_summarises_them_by_port(): void
     {
-        Http::fake([self::FIREWALL_URL => Http::response($this->rules())]);
+        $this->fakeFirewall();
 
         RunCloudServer::tool(FirewallTool::class, ['serverId' => 1903])
             ->assertOk()
@@ -48,11 +70,7 @@ class RunCloudFirewallToolsTest extends TestCase
 
     public function test_it_stages_a_rule_and_says_it_is_not_yet_live(): void
     {
-        Http::fake([
-            self::FIREWALL_URL => Http::sequence()
-                ->push($this->rules())
-                ->push(['id' => 999, 'type' => 'rich', 'port' => '22', 'ipAddress' => '203.0.113.7']),
-        ]);
+        $this->fakeFirewall(null, ['id' => 999, 'type' => 'rich', 'port' => '22', 'ipAddress' => '203.0.113.7']);
 
         RunCloudServer::tool(AddFirewallRuleTool::class, [
             'serverId' => 1903, 'type' => 'rich', 'port' => '22', 'protocol' => 'tcp',
@@ -66,7 +84,7 @@ class RunCloudFirewallToolsTest extends TestCase
 
     public function test_it_refuses_an_exact_duplicate_rule(): void
     {
-        Http::fake([self::FIREWALL_URL => Http::response($this->rules())]);
+        $this->fakeFirewall();
 
         RunCloudServer::tool(AddFirewallRuleTool::class, [
             'serverId' => 1903, 'type' => 'rich', 'port' => '22', 'protocol' => 'tcp',
@@ -96,9 +114,7 @@ class RunCloudFirewallToolsTest extends TestCase
 
     public function test_it_accepts_valid_cidr_notation(): void
     {
-        Http::fake([
-            self::FIREWALL_URL => Http::sequence()->push($this->rules())->push(['id' => 1000]),
-        ]);
+        $this->fakeFirewall(null, ['id' => 1000]);
 
         RunCloudServer::tool(AddFirewallRuleTool::class, [
             'serverId' => 1903, 'type' => 'rich', 'port' => '22', 'protocol' => 'tcp',
@@ -124,9 +140,9 @@ class RunCloudFirewallToolsTest extends TestCase
      */
     public function test_it_refuses_to_deploy_a_ruleset_that_permits_no_ssh(): void
     {
-        Http::fake([self::FIREWALL_URL => Http::response([
+        $this->fakeFirewall([
             ['id' => 1, 'type' => 'rich', 'port' => '443', 'protocol' => 'tcp', 'ipAddress' => '203.0.113.7', 'firewallAction' => 'accept'],
-        ])]);
+        ]);
 
         RunCloudServer::tool(DeployFirewallTool::class, ['serverId' => 1903, 'confirm' => true])
             ->assertHasErrors()
@@ -137,9 +153,9 @@ class RunCloudFirewallToolsTest extends TestCase
 
     public function test_a_reject_rule_on_port_22_does_not_count_as_ssh_access(): void
     {
-        Http::fake([self::FIREWALL_URL => Http::response([
+        $this->fakeFirewall([
             ['id' => 1, 'type' => 'rich', 'port' => '22', 'protocol' => 'tcp', 'ipAddress' => '203.0.113.7', 'firewallAction' => 'reject'],
-        ])]);
+        ]);
 
         RunCloudServer::tool(DeployFirewallTool::class, ['serverId' => 1903, 'confirm' => true])
             ->assertHasErrors()
@@ -151,9 +167,9 @@ class RunCloudFirewallToolsTest extends TestCase
      */
     public function test_a_port_range_covering_22_counts_as_ssh_access(): void
     {
-        Http::fake([self::FIREWALL_URL => Http::response([
+        $this->fakeFirewall([
             ['id' => 1, 'type' => 'rich', 'port' => '0-99999', 'protocol' => 'tcp', 'ipAddress' => '203.0.113.7', 'firewallAction' => 'accept'],
-        ])]);
+        ]);
 
         RunCloudServer::tool(DeployFirewallTool::class, ['serverId' => 1903, 'confirm' => true])
             ->assertOk();
@@ -163,7 +179,7 @@ class RunCloudFirewallToolsTest extends TestCase
 
     public function test_it_shows_the_ssh_allow_list_when_refusing_an_unconfirmed_deploy(): void
     {
-        Http::fake([self::FIREWALL_URL => Http::response($this->rules())]);
+        $this->fakeFirewall();
 
         RunCloudServer::tool(DeployFirewallTool::class, ['serverId' => 1903, 'confirm' => false])
             ->assertHasErrors()
@@ -175,10 +191,7 @@ class RunCloudFirewallToolsTest extends TestCase
 
     public function test_it_deploys_and_warns_that_application_is_asynchronous(): void
     {
-        Http::fake([self::FIREWALL_URL => Http::sequence()
-            ->push($this->rules())
-            ->push(['message' => 'Deploying rules to server']),
-        ]);
+        $this->fakeFirewall(null, ['message' => 'Deploying rules to server']);
 
         RunCloudServer::tool(DeployFirewallTool::class, ['serverId' => 1903, 'confirm' => true])
             ->assertOk()
@@ -190,7 +203,7 @@ class RunCloudFirewallToolsTest extends TestCase
 
     public function test_it_refuses_to_delete_a_rule_whose_address_does_not_match(): void
     {
-        Http::fake([self::FIREWALL_URL => Http::response($this->rules())]);
+        $this->fakeFirewall();
 
         RunCloudServer::tool(DeleteFirewallRuleTool::class, [
             'serverId' => 1903, 'firewallId' => 678339,
@@ -202,9 +215,9 @@ class RunCloudFirewallToolsTest extends TestCase
 
     public function test_it_refuses_to_delete_the_last_rule_permitting_ssh(): void
     {
-        Http::fake([self::FIREWALL_URL => Http::response([
+        $this->fakeFirewall([
             ['id' => 555, 'type' => 'rich', 'port' => '22', 'protocol' => 'tcp', 'ipAddress' => '203.0.113.7', 'firewallAction' => 'accept'],
-        ])]);
+        ]);
 
         RunCloudServer::tool(DeleteFirewallRuleTool::class, [
             'serverId' => 1903, 'firewallId' => 555,
@@ -216,10 +229,7 @@ class RunCloudFirewallToolsTest extends TestCase
 
     public function test_it_deletes_a_rule_when_others_still_permit_ssh(): void
     {
-        Http::fake([
-            self::FIREWALL_URL => Http::response($this->rules()),
-            self::FIREWALL_URL.'/678339' => Http::response(['id' => 678339]),
-        ]);
+        $this->fakeFirewall(null, ['id' => 678339]);
 
         RunCloudServer::tool(DeleteFirewallRuleTool::class, [
             'serverId' => 1903, 'firewallId' => 678339,
@@ -231,12 +241,67 @@ class RunCloudFirewallToolsTest extends TestCase
 
     public function test_it_refuses_to_delete_a_rule_that_does_not_exist(): void
     {
-        Http::fake([self::FIREWALL_URL => Http::response($this->rules())]);
+        $this->fakeFirewall();
 
         RunCloudServer::tool(DeleteFirewallRuleTool::class, [
             'serverId' => 1903, 'firewallId' => 424242,
             'ipAddress' => '73.29.62.210', 'confirm' => true,
         ])->assertHasErrors()->assertSee('no firewall rule with id 424242');
+    }
+
+    /**
+     * The endpoint paginates at 15 but returns a bare array with no pagination metadata, so nothing
+     * in a single response reveals that more rules exist. Reading only page one would let the
+     * duplicate check miss rules and leave the lockout guard judging from a fraction of the set.
+     */
+    public function test_it_reads_every_page_of_firewall_rules(): void
+    {
+        $pageOne = [];
+        for ($i = 1; $i <= 15; $i++) {
+            $pageOne[] = ['id' => $i, 'type' => 'rich', 'port' => '443', 'protocol' => 'tcp', 'ipAddress' => "10.0.0.{$i}", 'firewallAction' => 'accept'];
+        }
+        $pageTwo = [['id' => 99, 'type' => 'rich', 'port' => '22', 'protocol' => 'tcp', 'ipAddress' => '203.0.113.7', 'firewallAction' => 'accept']];
+
+        Http::fake(fn ($request) => Http::response(
+            str_contains($request->url(), 'page=2') ? $pageTwo : (str_contains($request->url(), 'page=1') ? $pageOne : [])
+        ));
+
+        RunCloudServer::tool(FirewallTool::class, ['serverId' => 1903])
+            ->assertOk()
+            ->assertSee('203.0.113.7');
+    }
+
+    public function test_the_lockout_guard_sees_an_ssh_rule_on_a_later_page(): void
+    {
+        $pageOne = [];
+        for ($i = 1; $i <= 15; $i++) {
+            $pageOne[] = ['id' => $i, 'type' => 'rich', 'port' => '443', 'protocol' => 'tcp', 'ipAddress' => "10.0.0.{$i}", 'firewallAction' => 'accept'];
+        }
+        $pageTwo = [['id' => 99, 'type' => 'rich', 'port' => '22', 'protocol' => 'tcp', 'ipAddress' => '203.0.113.7', 'firewallAction' => 'accept']];
+
+        Http::fake(function ($request) use ($pageOne, $pageTwo) {
+            if ($request->method() === 'PUT') {
+                return Http::response(['message' => 'Deploying rules to server']);
+            }
+
+            return Http::response(str_contains($request->url(), 'page=2') ? $pageTwo : (str_contains($request->url(), 'page=1') ? $pageOne : []));
+        });
+
+        // Would refuse if only page one were read, since nothing there permits SSH.
+        RunCloudServer::tool(DeployFirewallTool::class, ['serverId' => 1903, 'confirm' => true])
+            ->assertOk();
+
+        Http::assertSent(fn ($r): bool => $r->method() === 'PUT');
+    }
+
+    public function test_it_stops_paging_when_the_endpoint_ignores_the_page_parameter(): void
+    {
+        // Same page forever would otherwise loop to the page cap.
+        Http::fake(['*' => Http::response($this->rules())]);
+
+        RunCloudServer::tool(FirewallTool::class, ['serverId' => 1903])->assertOk();
+
+        $this->assertLessThan(5, count(Http::recorded()), 'Repeated identical pages must terminate the walk.');
     }
 
     public function test_the_delete_tool_is_withheld_from_the_standard_profile(): void

@@ -11,16 +11,61 @@ trait InteractsWithFirewallRules
     protected const SSH_PORT = 22;
 
     /**
-     * Read a server's firewall rules as a flat list.
+     * Upper bound on pages walked, so a malformed response cannot spin forever.
+     */
+    protected const MAX_RULE_PAGES = 50;
+
+    /**
+     * Read every firewall rule on a server, across all pages.
      *
-     * RunCloud returns these as a bare array rather than in a data envelope, and a single rule as a
-     * bare object, so both shapes are normalised here.
+     * This endpoint paginates at 15 despite returning a bare array with no pagination metadata, so
+     * there is no cursor to follow — pages are walked until one comes back empty or repeats ids
+     * already seen. Reading only the first page would let the duplicate check miss existing rules
+     * and leave the SSH lockout guard judging safety from a fraction of the ruleset.
      *
      * @return list<array<string, mixed>>
      */
     protected function firewallRules(int|string $serverId): array
     {
-        $payload = $this->client->get("servers/{$serverId}/security/firewalls");
+        $rules = [];
+        $seen = [];
+
+        for ($page = 1; $page <= self::MAX_RULE_PAGES; $page++) {
+            $batch = $this->firewallRulePage($serverId, $page);
+
+            if ($batch === []) {
+                break;
+            }
+
+            $new = 0;
+
+            foreach ($batch as $rule) {
+                $id = (string) ($rule['id'] ?? '');
+
+                if ($id !== '' && isset($seen[$id])) {
+                    continue;
+                }
+
+                $seen[$id] = true;
+                $rules[] = $rule;
+                $new++;
+            }
+
+            // An endpoint that ignores the page parameter would otherwise loop to the cap.
+            if ($new === 0) {
+                break;
+            }
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    protected function firewallRulePage(int|string $serverId, int $page): array
+    {
+        $payload = $this->client->get("servers/{$serverId}/security/firewalls", ['page' => $page]);
 
         if (array_key_exists('data', $payload) && is_array($payload['data'])) {
             $payload = $payload['data'];
