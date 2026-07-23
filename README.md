@@ -135,11 +135,14 @@ into separate tools so that MCP annotations stay accurate.
 | `runcloud-database-users` | `list`, `get` |
 | `runcloud-domains` | `list`, `get` |
 | `runcloud-ssl` | `status`, `method` (basic vs advanced, AutoSSL) |
+| `runcloud-system-users` | `list`, `get` |
 
 ### Write
 
 | Tool | Notes |
 | --- | --- |
+| `runcloud-create-webapp` | Custom/empty app for Laravel, APIs, static sites |
+| `runcloud-create-wordpress` | Full WordPress install; generates both passwords |
 | `runcloud-create-database` | RunCloud cannot rename a database afterwards |
 | `runcloud-create-database-user` | Generates a strong password; returned exactly once |
 | `runcloud-add-domain` | Configures neither DNS nor HTTPS |
@@ -239,12 +242,13 @@ application trusts `X-Forwarded-*` headers so generated URLs use `https`.
 
 ## Coverage
 
-Currently implemented: servers, web applications (list/get/delete), services, databases, database
-users, domains, and basic SSL.
+Currently implemented: servers, web applications (create custom and WordPress, list, get, delete),
+services, databases, database users, domains, basic SSL, and system users (read only).
 
-Not yet implemented: web application creation and settings, advanced per-domain SSL, system users,
-cron jobs, supervisor, deployments and Git, and script installers. These follow the same pattern —
-a tool class calling `RunCloudClient` — and the client and test scaffolding are reusable as-is.
+Not yet implemented: web application settings changes, cloning and alias apps, advanced per-domain
+SSL, system user management, cron jobs, supervisor, deployments and Git, and script installers.
+These follow the same pattern — a tool class calling `RunCloudClient` — and the client and test
+scaffolding are reusable as-is.
 
 ## Security
 

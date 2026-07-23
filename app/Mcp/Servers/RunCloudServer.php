@@ -6,6 +6,8 @@ use App\Mcp\Tools\AddDomainTool;
 use App\Mcp\Tools\ControlServiceTool;
 use App\Mcp\Tools\CreateDatabaseTool;
 use App\Mcp\Tools\CreateDatabaseUserTool;
+use App\Mcp\Tools\CreateWebAppTool;
+use App\Mcp\Tools\CreateWordPressWebAppTool;
 use App\Mcp\Tools\DatabaseGrantTool;
 use App\Mcp\Tools\DatabasesTool;
 use App\Mcp\Tools\DatabaseUsersTool;
@@ -20,6 +22,7 @@ use App\Mcp\Tools\InstallSslTool;
 use App\Mcp\Tools\ServersTool;
 use App\Mcp\Tools\ServicesTool;
 use App\Mcp\Tools\SslTool;
+use App\Mcp\Tools\SystemUsersTool;
 use App\Mcp\Tools\UpdateDatabaseUserPasswordTool;
 use App\Mcp\Tools\WebAppsTool;
 use Laravel\Mcp\Server;
@@ -39,6 +42,11 @@ one. Web app tools additionally need a webappId from runcloud-webapps.
 Service names: runcloud-control-service identifies services by their systemd unit name (realName),
 not their display name — NGiNX is "nginx-rc" and MariaDB is "mysql". Always call runcloud-services
 first to read the exact realName rather than guessing it.
+
+Creating web applications: a web application runs as a system user and lives in that user's home
+directory, so check runcloud-system-users first rather than defaulting everything to the runcloud
+account. Creating an app does not deploy code, and creating a custom app does not create a database.
+A new site has no certificate until one is issued.
 
 Domains and SSL: domains belong to a web application, so they need both a serverId and a webappId.
 Attaching a domain configures neither DNS nor HTTPS — the domain must already resolve to the
@@ -75,7 +83,10 @@ class RunCloudServer extends Server
         DatabaseUsersTool::class,
         DomainsTool::class,
         SslTool::class,
+        SystemUsersTool::class,
         ControlServiceTool::class,
+        CreateWebAppTool::class,
+        CreateWordPressWebAppTool::class,
         CreateDatabaseTool::class,
         CreateDatabaseUserTool::class,
         DatabaseGrantTool::class,
