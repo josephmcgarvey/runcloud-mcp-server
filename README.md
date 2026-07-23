@@ -13,8 +13,9 @@ Claude: (calls runcloud-services) NGiNX, MariaDB, Redis and Supervisor are runni
         Memcached and Beanstalk are stopped.
 ```
 
-> **This controls live infrastructure.** The tools here can restart services and delete servers,
-> web applications, and databases. Read [Safety model](#safety-model) before connecting it to a
+> **This controls live infrastructure.** Depending on the configured profile, the tools here can
+> restart services, deploy code, and delete web applications and databases. Read
+> [Tool profiles](#tool-profiles) and [Safety model](#safety-model) before connecting it to a
 > production RunCloud account.
 
 ## Requirements
@@ -36,11 +37,15 @@ php artisan key:generate
 php artisan migrate
 ```
 
-Then add your RunCloud API key to `.env`:
+Then configure `.env`:
 
 ```dotenv
 RUNCLOUD_API_TOKEN=your-token-here
+RUNCLOUD_MCP_PROFILE=standard
 ```
+
+`RUNCLOUD_MCP_PROFILE` decides which tools exist at all. Start with `readonly` while you are getting
+a feel for it — see [Tool profiles](#tool-profiles).
 
 ### Getting a RunCloud API key
 
