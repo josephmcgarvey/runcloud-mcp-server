@@ -126,7 +126,7 @@ this behaviour.
 
 ## Available tools
 
-Forty-one tools, subject to the configured [profile](#tool-profiles). Read and destructive operations are deliberately split into separate tools so
+Forty-five tools, subject to the configured [profile](#tool-profiles). Read and destructive operations are deliberately split into separate tools so
 that MCP annotations stay accurate.
 
 ### Read-only
@@ -145,6 +145,7 @@ that MCP annotations stay accurate.
 | `runcloud-cron` | `list`, `get` |
 | `runcloud-supervisor` | `list`, `get`, `status` (live process states) |
 | `runcloud-webapp-settings` | PHP/FPM settings and linked databases |
+| `runcloud-firewall` | Server firewall rules, summarised by port |
 
 ### Write
 
@@ -158,6 +159,7 @@ that MCP annotations stay accurate.
 | `runcloud-create-cron` | Takes a normal five-field cron expression |
 | `runcloud-create-supervisor` | Long-running processes such as queue workers |
 | `runcloud-create-system-user` | Generates the SSH/SFTP password; sudo off by default |
+| `runcloud-add-firewall-rule` | Stages a rule; refuses duplicates and malformed addresses |
 
 ### Destructive — require `confirm=true`
 
@@ -171,6 +173,7 @@ that MCP annotations stay accurate.
 | `runcloud-change-php-version` | Applies immediately, no staging step or rollback |
 | `runcloud-system-user-password` | Breaks anything using the old SSH/SFTP password |
 | `runcloud-generate-deployment-key` | Replaces any existing key, breaking deploys using it |
+| `runcloud-deploy-firewall` | Applies staged rules; refuses to leave no SSH route in |
 | `runcloud-git-clone` | Writes into the live application root |
 | `runcloud-git-deploy` | `deploy` (runs the script) or `branch` (switches branches) |
 | `runcloud-git-deploy-script` | Replaces the script outright; can enable auto-deploy |
@@ -184,6 +187,7 @@ that MCP annotations stay accurate.
 | `runcloud-delete-cron` | Also requires a matching `label` |
 | `runcloud-delete-supervisor` | Also requires a matching `label`; queued work stops |
 | `runcloud-delete-system-user` | Refuses while the user still owns web apps |
+| `runcloud-delete-firewall-rule` | Also requires a matching `ipAddress`; refuses the last SSH rule |
 
 ## Tool profiles
 
@@ -195,11 +199,11 @@ Set `RUNCLOUD_MCP_PROFILE` in `.env`:
 
 | Profile | Tools | Approx. context | Allows |
 | --- | --- | --- | --- |
-| `readonly` | 12 | ~4,200 tokens | Nothing that changes anything |
-| `standard` *(default)* | 32 | ~12,200 tokens | Reads, creation, modification, service control |
-| `full` | 41 | ~14,700 tokens | Everything, including deletions |
+| `readonly` | 13 | ~4,600 tokens | Nothing that changes anything |
+| `standard` *(default)* | 35 | ~13,200 tokens | Reads, creation, modification, service control |
+| `full` | 45 | ~16,100 tokens | Everything, including deletions |
 
-`standard` withholds the nine tools that destroy something the API cannot recreate. It still allows
+`standard` withholds the ten tools that destroy something the API cannot recreate. It still allows
 restarting services, deploying, and changing settings — those are disruptive but recoverable.
 
 An unrecognised value falls back to `standard`, so a typo cannot silently widen access.
@@ -305,12 +309,13 @@ application trusts `X-Forwarded-*` headers so generated URLs use `https`.
 
 ## Coverage
 
-Currently implemented: servers, web applications (create custom and WordPress, list, get, delete),
-services, databases, database users, domains, basic SSL, and system users (read only).
+Currently implemented: servers, web applications (create custom and WordPress, list, get, delete,
+settings), services, databases, database users, domains, basic SSL, system users, Git deployment,
+cron jobs, Supervisor, and the server firewall.
 
 Not yet implemented: cloning and alias apps, advanced per-domain SSL, backups and snapshots,
-firewall rules, server provisioning, third-party integrations, atomic deployments, and script
-installers. These follow the same
+server provisioning, the per-application WAF, third-party integrations, atomic deployments, and
+script installers. These follow the same
 pattern — a tool class calling `RunCloudClient` — and the client and test scaffolding are reusable
 as-is.
 

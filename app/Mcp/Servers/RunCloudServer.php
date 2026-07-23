@@ -3,6 +3,7 @@
 namespace App\Mcp\Servers;
 
 use App\Mcp\Tools\AddDomainTool;
+use App\Mcp\Tools\AddFirewallRuleTool;
 use App\Mcp\Tools\ChangePhpVersionTool;
 use App\Mcp\Tools\CloneGitRepositoryTool;
 use App\Mcp\Tools\ControlServiceTool;
@@ -21,11 +22,14 @@ use App\Mcp\Tools\DeleteCronJobTool;
 use App\Mcp\Tools\DeleteDatabaseTool;
 use App\Mcp\Tools\DeleteDatabaseUserTool;
 use App\Mcp\Tools\DeleteDomainTool;
+use App\Mcp\Tools\DeleteFirewallRuleTool;
 use App\Mcp\Tools\DeleteSslTool;
 use App\Mcp\Tools\DeleteSupervisorJobTool;
 use App\Mcp\Tools\DeleteSystemUserTool;
 use App\Mcp\Tools\DeleteWebAppTool;
+use App\Mcp\Tools\DeployFirewallTool;
 use App\Mcp\Tools\DomainsTool;
+use App\Mcp\Tools\FirewallTool;
 use App\Mcp\Tools\GenerateDeploymentKeyTool;
 use App\Mcp\Tools\GitDeployScriptTool;
 use App\Mcp\Tools\GitDeployTool;
@@ -65,6 +69,14 @@ one. Web app tools additionally need a webappId from runcloud-webapps.
 Service names: runcloud-control-service identifies services by their systemd unit name (realName),
 not their display name — NGiNX is "nginx-rc" and MariaDB is "mysql". Always call runcloud-services
 first to read the exact realName rather than guessing it.
+
+Firewall: rules are staged and then deployed, and they are two separate steps. Creating a rule
+changes nothing on the running server — runcloud-deploy-firewall is what applies it, so an allow
+rule that was never deployed grants nothing while appearing to exist. Deploying is the operation
+that can lock people out: if the ruleset does not permit SSH from an address someone actually has,
+the server becomes unreachable by the very means you would use to fix it. Before deploying, show
+the user which addresses will retain SSH access and have them confirm their own is among them, and
+tell them to keep any open SSH session running until a second, new connection has been tested.
 
 Scheduled and background work: cron jobs run on a schedule, Supervisor jobs run continuously.
 Both execute as a system user, so pick it with runcloud-system-users — the usual cause of a job
@@ -141,6 +153,7 @@ class RunCloudServer extends Server
         CronJobsTool::class,
         SupervisorTool::class,
         WebAppSettingsTool::class,
+        FirewallTool::class,
         ControlServiceTool::class,
         CloneGitRepositoryTool::class,
         GitDeployTool::class,
@@ -157,6 +170,8 @@ class RunCloudServer extends Server
         ChangePhpVersionTool::class,
         UpdateSystemUserPasswordTool::class,
         GenerateDeploymentKeyTool::class,
+        AddFirewallRuleTool::class,
+        DeployFirewallTool::class,
         DatabaseGrantTool::class,
         UpdateDatabaseUserPasswordTool::class,
         AddDomainTool::class,
@@ -170,6 +185,7 @@ class RunCloudServer extends Server
         DeleteCronJobTool::class,
         DeleteSupervisorJobTool::class,
         DeleteSystemUserTool::class,
+        DeleteFirewallRuleTool::class,
     ];
 
     protected array $resources = [
