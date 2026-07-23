@@ -3,12 +3,14 @@
 namespace App\Mcp\Servers;
 
 use App\Mcp\Tools\AddDomainTool;
+use App\Mcp\Tools\ChangePhpVersionTool;
 use App\Mcp\Tools\CloneGitRepositoryTool;
 use App\Mcp\Tools\ControlServiceTool;
 use App\Mcp\Tools\CreateCronJobTool;
 use App\Mcp\Tools\CreateDatabaseTool;
 use App\Mcp\Tools\CreateDatabaseUserTool;
 use App\Mcp\Tools\CreateSupervisorJobTool;
+use App\Mcp\Tools\CreateSystemUserTool;
 use App\Mcp\Tools\CreateWebAppTool;
 use App\Mcp\Tools\CreateWordPressWebAppTool;
 use App\Mcp\Tools\CronJobsTool;
@@ -22,8 +24,10 @@ use App\Mcp\Tools\DeleteDomainTool;
 use App\Mcp\Tools\DeleteServerTool;
 use App\Mcp\Tools\DeleteSslTool;
 use App\Mcp\Tools\DeleteSupervisorJobTool;
+use App\Mcp\Tools\DeleteSystemUserTool;
 use App\Mcp\Tools\DeleteWebAppTool;
 use App\Mcp\Tools\DomainsTool;
+use App\Mcp\Tools\GenerateDeploymentKeyTool;
 use App\Mcp\Tools\GitDeployScriptTool;
 use App\Mcp\Tools\GitDeployTool;
 use App\Mcp\Tools\GitTool;
@@ -36,6 +40,9 @@ use App\Mcp\Tools\SupervisorTool;
 use App\Mcp\Tools\SystemUsersTool;
 use App\Mcp\Tools\ToggleCronJobTool;
 use App\Mcp\Tools\UpdateDatabaseUserPasswordTool;
+use App\Mcp\Tools\UpdateSystemUserPasswordTool;
+use App\Mcp\Tools\UpdateWebAppSettingsTool;
+use App\Mcp\Tools\WebAppSettingsTool;
 use App\Mcp\Tools\WebAppsTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
@@ -72,6 +79,18 @@ silently discarding a script that is already there. Deploying commonly runs data
 which are not automatically reversible, so describe what the script actually does rather than
 describing the deploy in the abstract. Enabling autoDeploy means every push to the tracked branch
 runs that script on the live site with no further review; say so plainly when turning it on.
+
+System users: a system user owns a home directory, and web applications live inside it. Deleting a
+user therefore destroys the sites it owns, so check runcloud-webapps before proposing it. Their
+password is SSH and SFTP access to the server, and sudo should stay off unless the account genuinely
+needs privileged commands. Generating a Git deployment key replaces any existing one, which breaks
+every repository still registered against the old key.
+
+Changing web app settings: runcloud-update-webapp-settings merges over the current configuration, so
+pass only what should change. disableFunctions and openBasedir are security controls rather than
+tuning knobs — loosening either to make something work widens what the application can do, so raise
+that with the user rather than quietly adjusting it. Changing the PHP version applies to the live
+site immediately with no staging step and no automatic rollback.
 
 Creating web applications: a web application runs as a system user and lives in that user's home
 directory, so check runcloud-system-users first rather than defaulting everything to the runcloud
@@ -117,6 +136,7 @@ class RunCloudServer extends Server
         GitTool::class,
         CronJobsTool::class,
         SupervisorTool::class,
+        WebAppSettingsTool::class,
         ControlServiceTool::class,
         CloneGitRepositoryTool::class,
         GitDeployTool::class,
@@ -128,6 +148,11 @@ class RunCloudServer extends Server
         CreateCronJobTool::class,
         CreateSupervisorJobTool::class,
         ToggleCronJobTool::class,
+        CreateSystemUserTool::class,
+        UpdateWebAppSettingsTool::class,
+        ChangePhpVersionTool::class,
+        UpdateSystemUserPasswordTool::class,
+        GenerateDeploymentKeyTool::class,
         DatabaseGrantTool::class,
         UpdateDatabaseUserPasswordTool::class,
         AddDomainTool::class,
@@ -140,6 +165,7 @@ class RunCloudServer extends Server
         RemoveGitRepositoryTool::class,
         DeleteCronJobTool::class,
         DeleteSupervisorJobTool::class,
+        DeleteSystemUserTool::class,
         DeleteServerTool::class,
     ];
 

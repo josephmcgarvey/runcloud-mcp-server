@@ -121,7 +121,7 @@ this behaviour.
 
 ## Available tools
 
-Thirty-five tools. Read and destructive operations are deliberately split into separate tools so
+Forty-two tools. Read and destructive operations are deliberately split into separate tools so
 that MCP annotations stay accurate.
 
 ### Read-only
@@ -139,6 +139,7 @@ that MCP annotations stay accurate.
 | `runcloud-git` | Repository, branch, auto-deploy state, deployment script |
 | `runcloud-cron` | `list`, `get` |
 | `runcloud-supervisor` | `list`, `get`, `status` (live process states) |
+| `runcloud-webapp-settings` | PHP/FPM settings and linked databases |
 
 ### Write
 
@@ -151,6 +152,7 @@ that MCP annotations stay accurate.
 | `runcloud-add-domain` | Configures neither DNS nor HTTPS |
 | `runcloud-create-cron` | Takes a normal five-field cron expression |
 | `runcloud-create-supervisor` | Long-running processes such as queue workers |
+| `runcloud-create-system-user` | Generates the SSH/SFTP password; sudo off by default |
 
 ### Destructive — require `confirm=true`
 
@@ -160,6 +162,10 @@ that MCP annotations stay accurate.
 | `runcloud-database-grant` | `grant` needs no confirmation; `revoke` does |
 | `runcloud-database-user-password` | Resets a password, breaking apps using the old one |
 | `runcloud-toggle-cron` | Flips state; re-reads the job first to avoid inverting the intent |
+| `runcloud-update-webapp-settings` | Merges over current values; reloads the FPM pool |
+| `runcloud-change-php-version` | Applies immediately, no staging step or rollback |
+| `runcloud-system-user-password` | Breaks anything using the old SSH/SFTP password |
+| `runcloud-generate-deployment-key` | Replaces any existing key, breaking deploys using it |
 | `runcloud-git-clone` | Writes into the live application root |
 | `runcloud-git-deploy` | `deploy` (runs the script) or `branch` (switches branches) |
 | `runcloud-git-deploy-script` | Replaces the script outright; can enable auto-deploy |
@@ -172,6 +178,7 @@ that MCP annotations stay accurate.
 | `runcloud-delete-ssl` | HTTPS stops working |
 | `runcloud-delete-cron` | Also requires a matching `label` |
 | `runcloud-delete-supervisor` | Also requires a matching `label`; queued work stops |
+| `runcloud-delete-system-user` | Refuses while the user still owns web apps |
 | `runcloud-delete-server` | Also requires a matching `serverName` |
 
 ## Safety model
@@ -257,8 +264,9 @@ application trusts `X-Forwarded-*` headers so generated URLs use `https`.
 Currently implemented: servers, web applications (create custom and WordPress, list, get, delete),
 services, databases, database users, domains, basic SSL, and system users (read only).
 
-Not yet implemented: web application settings changes, cloning and alias apps, advanced per-domain
-SSL, system user management, backups, firewall rules, and script installers. These follow the same
+Not yet implemented: cloning and alias apps, advanced per-domain SSL, backups and snapshots,
+firewall rules, server provisioning, third-party integrations, atomic deployments, and script
+installers. These follow the same
 pattern — a tool class calling `RunCloudClient` — and the client and test scaffolding are reusable
 as-is.
 
