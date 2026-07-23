@@ -1,0 +1,2164 @@
+{
+  "info": {
+    "_postman_id": "b7e4c2a1-3f8d-4c6e-9a1b-runcloudv3api00",
+    "name": "RunCloud API v3",
+    "description": "RunCloud v3 REST API.\n\n## Setup\n\n1. Import the companion environment file, or set collection variables directly.\n2. Put your key in `apiToken` (Workspace > Settings > API Key).\n3. Run **00 \u00b7 Connectivity > Ping** \u2014 it should return `{\"message\":\"pong\"}`.\n\nAuth is inherited by every request from the collection, so no request carries the token itself.\n\n## Conventions\n\n- **Envelope is inconsistent.** List endpoints return `{data:[...], meta:{pagination:{...}}}`. Single-resource, delete, and services endpoints return bare objects. Do not write one generic unwrapper.\n- **Pagination** is `page` and `perPage`, capped at 40 \u2014 except web apps and domains, which cap at 20.\n- **Rate limits** surface as `X-RateLimit-Limit` / `X-RateLimit-Remaining`, and 429 when exceeded.\n- **403 usually means scope, not syntax.** RunCloud scopes API keys per resource type, so a key that lists servers happily can still be refused on Git.\n\n## Secrets in responses\n\nWeb app responses embed `pullKey1`/`pullKey2` \u2014 Git deploy keys. Postman syncs collections and history to the cloud by default, so be deliberate about saving those responses as examples.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{apiToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Surface rate-limit headroom and the common failure modes.",
+          "const remaining = pm.response.headers.get('X-RateLimit-Remaining');",
+          "if (remaining !== null && Number(remaining) < 10) {",
+          "    console.warn('RunCloud rate limit nearly exhausted: ' + remaining + ' remaining');",
+          "}",
+          "",
+          "if (pm.response.code === 401) {",
+          "    console.error('401 \u2014 check the apiToken variable.');",
+          "} else if (pm.response.code === 403) {",
+          "    console.error('403 \u2014 the API key lacks permission for this resource. RunCloud scopes keys per resource type; check Workspace > Settings > API Key.');",
+          "} else if (pm.response.code === 422) {",
+          "    console.error('422 \u2014 validation failed: ' + pm.response.text());",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://manage.runcloud.io/api/v3"
+    },
+    {
+      "key": "apiToken",
+      "value": ""
+    },
+    {
+      "key": "serverId",
+      "value": ""
+    },
+    {
+      "key": "webappId",
+      "value": ""
+    },
+    {
+      "key": "databaseId",
+      "value": ""
+    },
+    {
+      "key": "databaseUserId",
+      "value": ""
+    },
+    {
+      "key": "systemUserId",
+      "value": ""
+    },
+    {
+      "key": "domainId",
+      "value": ""
+    },
+    {
+      "key": "sslId",
+      "value": ""
+    },
+    {
+      "key": "gitId",
+      "value": ""
+    },
+    {
+      "key": "cronJobId",
+      "value": ""
+    },
+    {
+      "key": "supervisorId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 \u00b7 Connectivity",
+      "item": [
+        {
+          "name": "Ping (verify token)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ping",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ping"
+              ]
+            },
+            "description": "Returns {\"message\":\"pong\"}. The fastest way to confirm the token and base URL are right."
+          },
+          "response": []
+        }
+      ],
+      "description": "Start here."
+    },
+    {
+      "name": "01 \u00b7 Servers",
+      "item": [
+        {
+          "name": "List servers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers?page=1&perPage=40",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "perPage",
+                  "value": "40"
+                }
+              ]
+            },
+            "description": "perPage is capped at 40. Pagination lives under meta.pagination, not meta."
+          },
+          "response": []
+        },
+        {
+          "name": "Get server",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}"
+              ]
+            },
+            "description": "Returns a bare object, NOT wrapped in `data`. List endpoints wrap; single-resource ones do not."
+          },
+          "response": []
+        },
+        {
+          "name": "Server stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "stats"
+              ]
+            },
+            "description": "Counts of web apps, databases, cron jobs and supervisor tasks."
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "02 \u00b7 Web applications",
+      "item": [
+        {
+          "name": "List web apps",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps?page=1&search=&sortColumn=name&sortDirection=asc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "sortColumn",
+                  "value": "name"
+                },
+                {
+                  "key": "sortDirection",
+                  "value": "asc"
+                }
+              ]
+            },
+            "description": "Caps at 20 per page here, unlike the global 40.\n\nResponses include pullKey1/pullKey2 \u2014 Git deploy keys. Treat them as secrets."
+          },
+          "response": []
+        },
+        {
+          "name": "Get web app",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Create custom web app",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/custom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "custom"
+              ]
+            },
+            "description": "`user` is a system user ID \u2014 omit it and the app lands under the default runcloud account.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"my-app\",\n  \"domainName\": \"app.example.com\",\n  \"user\": \"{{systemUserId}}\",\n  \"publicPath\": \"public\",\n  \"phpVersion\": \"php83rc\",\n  \"stack\": \"nativenginx\",\n  \"stackMode\": \"production\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create WordPress web app",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/wordpress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "wordpress"
+              ]
+            },
+            "description": "dbUser/dbPassword/dbName/dbPrefix are auto-generated when omitted.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"my-blog\",\n  \"domainName\": \"blog.example.com\",\n  \"siteTitle\": \"My Blog\",\n  \"adminUsername\": \"admin-user\",\n  \"password\": \"CHANGE-ME-strong-password\",\n  \"adminEmail\": \"you@example.com\",\n  \"user\": \"{{systemUserId}}\",\n  \"phpVersion\": \"php83rc\",\n  \"disableWpCron\": true,\n  \"wpCronInterval\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "03 \u00b7 Web app settings",
+      "item": [
+        {
+          "name": "Get settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "settings"
+              ]
+            },
+            "description": "Also lists linked databases."
+          },
+          "response": []
+        },
+        {
+          "name": "Update PHP-FPM / NGINX settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/settings/fpmnginx",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "settings",
+                "fpmnginx"
+              ]
+            },
+            "description": "Every field is documented as optional, but RunCloud does not say whether omitted fields are preserved or reset.\n\nSafest approach: GET /settings first and send back the full set with your changes applied. disableFunctions is a security control \u2014 losing it silently re-enables exec/shell_exec.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memoryLimit\": 512,\n  \"maxExecutionTime\": 60,\n  \"processManager\": \"ondemand\",\n  \"processManagerMaxChildren\": 50,\n  \"timezone\": \"UTC\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change PHP version",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/settings/php",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "settings",
+                "php"
+              ]
+            },
+            "description": "Applies immediately to the live site. No staging step, no rollback.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phpVersion\": \"php83rc\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change linked database",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/settings/database",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "settings",
+                "database"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"databaseId\": \"{{databaseId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "04 \u00b7 Domains",
+      "item": [
+        {
+          "name": "List domains",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/domains?page=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "domains"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Get domain",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/domains/{{domainId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "domains",
+                "{{domainId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Add domain",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/domains",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "domains"
+              ]
+            },
+            "description": "type: primary | alias | redirect. Configures neither DNS nor HTTPS.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"example.com\",\n  \"type\": \"alias\",\n  \"www\": false,\n  \"redirection\": \"none\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "05 \u00b7 SSL",
+      "item": [
+        {
+          "name": "Get SSL status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/ssl",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "ssl"
+              ]
+            },
+            "description": "Undocumented response shape. With advanced SSL enabled it returns {data:[{id,name,ssl}]} \u2014 one entry per domain, not a single certificate."
+          },
+          "response": []
+        },
+        {
+          "name": "Check SSL method / AutoSSL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/ssl/advanced",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "ssl",
+                "advanced"
+              ]
+            },
+            "description": "Returns {advancedSSL: bool, autoSSL: bool}."
+          },
+          "response": []
+        },
+        {
+          "name": "Install SSL (Let's Encrypt)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/ssl",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "ssl"
+              ]
+            },
+            "description": "Use environment=staging while testing. Live issuance is rate-limited per domain per week and repeated failures lock a domain out for days.\n\nHSTS is close to irreversible \u2014 browsers cache it long after you turn it off.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"letsencrypt\",\n  \"authorizationMethod\": \"http-01\",\n  \"environment\": \"staging\",\n  \"enableHttp\": true,\n  \"enableHsts\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Install SSL (custom certificate)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/ssl",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "ssl"
+              ]
+            },
+            "description": "Do not save a real private key into this collection \u2014 Postman syncs collections to the cloud by default.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"custom\",\n  \"certificate\": \"-----BEGIN CERTIFICATE-----\\\\n...\",\n  \"privateKey\": \"-----BEGIN RSA PRIVATE KEY-----\\\\n...\",\n  \"enableHttp\": true,\n  \"enableHsts\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "06 \u00b7 Databases",
+      "item": [
+        {
+          "name": "List databases",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/databases?page=1&perPage=40",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "databases"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "perPage",
+                  "value": "40"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Get database",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/databases/{{databaseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "databases",
+                "{{databaseId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Create database",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/databases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "databases"
+              ]
+            },
+            "description": "There is no rename endpoint in v3. The only correction is delete and recreate.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"my_database\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List granted users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/databases/{{databaseId}}/grant",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "databases",
+                "{{databaseId}}",
+                "grant"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Grant user access",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/databases/{{databaseId}}/grant",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "databases",
+                "{{databaseId}}",
+                "grant"
+              ]
+            },
+            "description": "`id` is the database USER id, and it is a single integer despite the plural endpoint name.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{databaseUserId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "07 \u00b7 Database users",
+      "item": [
+        {
+          "name": "List database users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/databaseusers?page=1&perPage=40",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "databaseusers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "perPage",
+                  "value": "40"
+                }
+              ]
+            },
+            "description": "Path is lowercase `databaseusers`, no separator."
+          },
+          "response": []
+        },
+        {
+          "name": "Get database user",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/databaseusers/{{databaseUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "databaseusers",
+                "{{databaseUserId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Create database user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/databaseusers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "databaseusers"
+              ]
+            },
+            "description": "The response does NOT echo the password back. Capture it now or lose it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"my_db_user\",\n  \"password\": \"CHANGE-ME-strong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/databaseusers/{{databaseUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "databaseusers",
+                "{{databaseUserId}}"
+              ]
+            },
+            "description": "Note there is NO /password suffix here, unlike the system-user equivalent. Returns an empty object.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"CHANGE-ME-new-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "08 \u00b7 System users",
+      "item": [
+        {
+          "name": "List system users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/users?page=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "deploymentKey is the PUBLIC SSH key \u2014 safe to paste into GitHub deploy keys."
+          },
+          "response": []
+        },
+        {
+          "name": "Get system user",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/users/{{systemUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "users",
+                "{{systemUserId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Create system user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "users"
+              ]
+            },
+            "description": "This password is SSH and SFTP access to the server.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"clientco\",\n  \"password\": \"CHANGE-ME-strong-password\",\n  \"sudoers\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/users/{{systemUserId}}/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "users",
+                "{{systemUserId}}",
+                "password"
+              ]
+            },
+            "description": "Note the /password suffix here \u2014 the database-user equivalent has none.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"CHANGE-ME-new-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Git deployment key",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/users/{{systemUserId}}/deploymentkey",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "users",
+                "{{systemUserId}}",
+                "deploymentkey"
+              ]
+            },
+            "description": "Replaces any existing key. Every repo registered against the old one stops deploying."
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "09 \u00b7 Git deployment",
+      "item": [
+        {
+          "name": "Get Git config",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/git",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "git"
+              ]
+            },
+            "description": "Returns the gitId the other requests need. 403 here usually means the API key lacks the Git scope \u2014 check Workspace > Settings > API Key."
+          },
+          "response": []
+        },
+        {
+          "name": "Clone repository",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/git",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "git"
+              ]
+            },
+            "description": "`repository` is the path (acme/website), not a URL. Writes into the live app root.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"github\",\n  \"repository\": \"acme/website\",\n  \"branch\": \"main\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change branch",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/git/{{gitId}}/branch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "git",
+                "{{gitId}}",
+                "branch"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branch\": \"develop\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set deployment script",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/git/{{gitId}}/script",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "git",
+                "{{gitId}}",
+                "script"
+              ]
+            },
+            "description": "PATCH here EDITS the script. PUT on this same URL RUNS it. The verb is the only difference \u2014 see the next request.\n\nReplaces the script outright rather than appending.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"autoDeploy\": false,\n  \"deployScript\": \"git merge\\ncomposer install --no-dev\\nphp artisan migrate --force\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Run deployment (force deploy)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/git/{{gitId}}/script",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "git",
+                "{{gitId}}",
+                "script"
+              ]
+            },
+            "description": "PUT runs the script. PATCH on this identical URL rewrites it instead. Easy to get backwards.\n\nRuns asynchronously and returns nothing useful \u2014 check the activity log in the dashboard."
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "10 \u00b7 Services",
+      "item": [
+        {
+          "name": "List services",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/services",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "services"
+              ]
+            },
+            "description": "Keyed object, not a list, and not paginated.\n\nThe `realName` field is the systemd unit and is what the control request needs \u2014 NGiNX is nginx-rc, MariaDB is mysql."
+          },
+          "response": []
+        },
+        {
+          "name": "Control service",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/services",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "services"
+              ]
+            },
+            "description": "action: start | stop | restart | reload. Prefer reload \u2014 it does not drop connections.\n\nUse realName from the list request, never the map key.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"reload\",\n  \"realName\": \"nginx-rc\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "11 \u00b7 Cron jobs",
+      "item": [
+        {
+          "name": "List cron jobs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/cronjobs?page=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "cronjobs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Schedule comes back as one `time` string; `enabled` is 1/0, not a boolean."
+          },
+          "response": []
+        },
+        {
+          "name": "Get cron job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/cronjobs/{{cronJobId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "cronjobs",
+                "{{cronJobId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Create cron job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/cronjobs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "cronjobs"
+              ]
+            },
+            "description": "Creation takes five separate fields even though responses return one string. Shorthand like @daily is not accepted.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Laravel scheduler\",\n  \"username\": \"runcloud\",\n  \"command\": \"/RunCloud/Packages/php83rc/bin/php /home/runcloud/webapps/app/artisan schedule:run\",\n  \"minute\": \"*\",\n  \"hour\": \"*\",\n  \"dayOfMonth\": \"*\",\n  \"month\": \"*\",\n  \"dayOfWeek\": \"*\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle enabled/disabled",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/cronjobs/{{cronJobId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "cronjobs",
+                "{{cronJobId}}",
+                "status"
+              ]
+            },
+            "description": "This FLIPS the current state rather than setting it. Read the job first or you will do the opposite of what you intended."
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "12 \u00b7 Supervisor",
+      "item": [
+        {
+          "name": "List supervisor jobs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/supervisors?page=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "supervisors"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Process status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/supervisors/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "supervisors",
+                "status"
+              ]
+            },
+            "description": "Keyed by job label. FATAL means the process died and Supervisor gave up \u2014 usually a bad command or a permissions problem."
+          },
+          "response": []
+        },
+        {
+          "name": "Get supervisor job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/supervisors/{{supervisorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "supervisors",
+                "{{supervisorId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Create supervisor job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/supervisors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "supervisors"
+              ]
+            },
+            "description": "numprocs copies run in parallel, each holding memory for the life of the process. Check /supervisors/status afterwards \u2014 a bad command surfaces there, not here.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"queue-worker\",\n  \"username\": \"runcloud\",\n  \"command\": \"/RunCloud/Packages/php83rc/bin/php /home/runcloud/webapps/app/artisan queue:work --tries=3\",\n  \"numprocs\": 1,\n  \"autoStart\": true,\n  \"autoRestart\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": ""
+    },
+    {
+      "name": "99 \u00b7 Destructive",
+      "item": [
+        {
+          "name": "Delete web app",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}"
+              ]
+            },
+            "description": "Returns the deleted object."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete domain",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/domains/{{domainId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "domains",
+                "{{domainId}}"
+              ]
+            },
+            "description": "Removing the primary domain effectively takes the site offline."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete SSL certificate",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/ssl/{{sslId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "ssl",
+                "{{sslId}}"
+              ]
+            },
+            "description": "HTTPS stops working. If HSTS was enabled, visitors may be unable to reach the site at all until it expires in their browser."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete database",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/databases/{{databaseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "databases",
+                "{{databaseId}}"
+              ]
+            },
+            "description": "A DELETE that requires a JSON body \u2014 easy to miss.\n\ndeleteUser=true also removes associated users, which may serve OTHER databases.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deleteUser\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete database user",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/databaseusers/{{databaseUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "databaseusers",
+                "{{databaseUserId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Delete system user",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/users/{{systemUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "users",
+                "{{systemUserId}}"
+              ]
+            },
+            "description": "Web apps live in the user's home directory. Deleting a user that owns web apps destroys those sites and their files. RunCloud gives no warning \u2014 check the web app list first."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Git repository",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/webapps/{{webappId}}/git/{{gitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "webapps",
+                "{{webappId}}",
+                "git",
+                "{{gitId}}"
+              ]
+            },
+            "description": "The deployment script goes with it and is not recoverable. Copy it first if you may want it."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete cron job",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/cronjobs/{{cronJobId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "cronjobs",
+                "{{cronJobId}}"
+              ]
+            },
+            "description": "Scheduled work stops silently. To pause instead, use the toggle request."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete supervisor job",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/servers/{{serverId}}/supervisors/{{supervisorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "servers",
+                "{{serverId}}",
+                "supervisors",
+                "{{supervisorId}}"
+              ]
+            },
+            "description": "If it is a queue worker, jobs pile up in the queue rather than erroring."
+          },
+          "response": []
+        }
+      ],
+      "description": "Every request here changes or destroys something and none of them ask twice. Check the variable values before hitting Send.\n\nDELETE /servers/{id} exists in the API but is deliberately not included."
+    }
+  ]
+}

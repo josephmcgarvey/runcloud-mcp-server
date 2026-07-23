@@ -256,6 +256,17 @@ redaction. Tools own endpoint paths and input schemas.
 Adding a resource means writing a tool that calls the client and registering it in
 `App\Mcp\Servers\RunCloudServer`.
 
+## Postman collection
+
+`postman/` contains a collection and environment covering 57 RunCloud v3 endpoints, useful for
+exercising the API directly when a tool misbehaves and you need to see the raw response.
+
+Import both files, set `apiToken` in the environment, and run **00 · Connectivity > Ping**.
+
+Requests are annotated with the API's sharper edges — the inconsistent response envelope, the
+`PATCH`/`PUT` collision on the Git script endpoint, the `DELETE` that requires a JSON body, and the
+cron toggle that flips rather than sets. Destructive requests are isolated in their own folder.
+
 ## Testing
 
 ```bash
