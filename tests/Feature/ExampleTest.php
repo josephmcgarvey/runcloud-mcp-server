@@ -2,18 +2,16 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
     /**
-     * A basic test example.
+     * The root is not a route. This is a headless MCP server, so "/" returns 404 rather than a
+     * landing page — and the removed Laravel welcome page must not come back.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_root_returns_not_found(): void
     {
-        $response = $this->get('/');
-
-        $response->assertStatus(200);
+        $this->get('/')->assertNotFound();
     }
 }
