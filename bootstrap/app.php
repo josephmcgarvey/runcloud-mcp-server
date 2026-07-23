@@ -22,11 +22,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         /*
-         * Registering web routes makes Laravel redirect unauthenticated users to a "login" route
-         * by default. This application has no login page, so that redirect throws and surfaces a
-         * 500 instead of a 401. Returning null makes guests receive a plain 401 everywhere.
+         * Guests are treated differently depending on who is asking.
+         *
+         * Browsers land on the login page, which is what makes Passport's OAuth consent screen
+         * reachable: it throws an authentication exception when there is no session, and without
+         * somewhere for that to redirect, the Claude Desktop connector flow dead-ends.
+         *
+         * API and MCP clients get a plain 401 instead. Returning a redirect target for them would
+         * answer a JSON-RPC call with an HTML login page, which reads as a server fault rather
+         * than an authentication failure.
          */
-        $middleware->redirectGuestsTo(fn (): ?string => null);
+        $middleware->redirectGuestsTo(fn (Request $request): ?string => $request->is('mcp')
+            || $request->is('api/*')
+            || $request->expectsJson()
+                ? null
+                : route('login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         /*

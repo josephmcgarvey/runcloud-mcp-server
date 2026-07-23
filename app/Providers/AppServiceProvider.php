@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\RunCloud\RunCloudClient;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +25,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        /*
+         * Passport ships no consent screen of its own, so without this the OAuth flow has nothing
+         * to render at the point a user is deciding whether to grant an application access to
+         * their infrastructure.
+         */
+        Passport::authorizationView('oauth.authorize');
     }
 }

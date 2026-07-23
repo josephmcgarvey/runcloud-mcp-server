@@ -117,10 +117,24 @@ it first causes valid Sanctum tokens to be rejected. With Sanctum first, persona
 authenticate directly and anything Sanctum cannot resolve falls through to Passport. A test pins
 this behaviour.
 
-> **Status:** the server side is verified — discovery documents, `WWW-Authenticate` challenges,
-> 401 handling, and Sanctum authentication are all covered by tests. A full Claude Desktop OAuth
-> handshake has not yet been completed end-to-end. Passport's approval screen requires a logged-in
-> web session, and this application ships no login UI, so that flow may need a minimal login route.
+Passport renders a consent screen but ships no view for it, and it requires a signed-in session, so
+this application provides both: a login page at `/login` and a consent screen at
+`resources/views/oauth/authorize.blade.php`. Neither uses Vite — they must render correctly on a
+fresh deployment, and an unstyled consent screen is a poor place to be asking someone to grant
+access to infrastructure.
+
+Create an account from the console; there is no self-service registration, because signing in leads
+to server management tooling:
+
+```bash
+php artisan tinker --execute 'App\Models\User::create([
+    "name" => "You", "email" => "you@example.com", "password" => "a-strong-password",
+]);'
+```
+
+> **Status:** the OAuth flow has been exercised end-to-end locally — dynamic client registration,
+> guest redirect to login, sign-in, consent screen, approval, and an authorization code returned to
+> the callback. It has not yet been run against a deployed instance from Claude Desktop itself.
 
 **Never expose `/mcp` without authentication.** Anyone who can reach it can control your servers.
 
