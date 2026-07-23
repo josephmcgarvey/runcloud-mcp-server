@@ -29,9 +29,15 @@ class RunCloudClient
      * log, so they are stripped at the transport boundary rather than per tool. If a future feature
      * genuinely needs one, fetch it deliberately instead of widening this list.
      *
+     * privateKey is accepted when installing a custom SSL certificate. RunCloud does not document
+     * the shape of its SSL responses at all, so it is stripped defensively rather than on evidence
+     * that it is echoed back — a leaked TLS private key is not a recoverable mistake. The
+     * certificate itself is deliberately not redacted: it is public material served to every
+     * browser, and seeing it is often the point of the request.
+     *
      * @var list<string>
      */
-    public const REDACTED_KEYS = ['pullKey1', 'pullKey2'];
+    public const REDACTED_KEYS = ['pullKey1', 'pullKey2', 'privateKey', 'private_key'];
 
     public function __construct(
         protected readonly string $token,

@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Tools\AddDomainTool;
 use App\Mcp\Tools\ControlServiceTool;
 use App\Mcp\Tools\CreateDatabaseTool;
 use App\Mcp\Tools\CreateDatabaseUserTool;
@@ -10,10 +11,15 @@ use App\Mcp\Tools\DatabasesTool;
 use App\Mcp\Tools\DatabaseUsersTool;
 use App\Mcp\Tools\DeleteDatabaseTool;
 use App\Mcp\Tools\DeleteDatabaseUserTool;
+use App\Mcp\Tools\DeleteDomainTool;
 use App\Mcp\Tools\DeleteServerTool;
+use App\Mcp\Tools\DeleteSslTool;
 use App\Mcp\Tools\DeleteWebAppTool;
+use App\Mcp\Tools\DomainsTool;
+use App\Mcp\Tools\InstallSslTool;
 use App\Mcp\Tools\ServersTool;
 use App\Mcp\Tools\ServicesTool;
+use App\Mcp\Tools\SslTool;
 use App\Mcp\Tools\UpdateDatabaseUserPasswordTool;
 use App\Mcp\Tools\WebAppsTool;
 use Laravel\Mcp\Server;
@@ -33,6 +39,13 @@ one. Web app tools additionally need a webappId from runcloud-webapps.
 Service names: runcloud-control-service identifies services by their systemd unit name (realName),
 not their display name — NGiNX is "nginx-rc" and MariaDB is "mysql". Always call runcloud-services
 first to read the exact realName rather than guessing it.
+
+Domains and SSL: domains belong to a web application, so they need both a serverId and a webappId.
+Attaching a domain configures neither DNS nor HTTPS — the domain must already resolve to the
+server, and a certificate is installed separately. When issuing Let's Encrypt certificates prefer
+the staging environment while testing, because live issuance is rate-limited per domain per week
+and repeated failures can lock a domain out for days. Treat HSTS as close to irreversible: once
+enabled, browsers refuse plain HTTP for that domain and cache the decision.
 
 Databases: a database and a database user are separate objects, and creating either one does not
 connect them — grant access explicitly with runcloud-database-grant. RunCloud cannot rename a
@@ -60,14 +73,20 @@ class RunCloudServer extends Server
         ServicesTool::class,
         DatabasesTool::class,
         DatabaseUsersTool::class,
+        DomainsTool::class,
+        SslTool::class,
         ControlServiceTool::class,
         CreateDatabaseTool::class,
         CreateDatabaseUserTool::class,
         DatabaseGrantTool::class,
         UpdateDatabaseUserPasswordTool::class,
+        AddDomainTool::class,
+        InstallSslTool::class,
         DeleteWebAppTool::class,
         DeleteDatabaseTool::class,
         DeleteDatabaseUserTool::class,
+        DeleteDomainTool::class,
+        DeleteSslTool::class,
         DeleteServerTool::class,
     ];
 

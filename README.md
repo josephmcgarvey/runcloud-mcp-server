@@ -133,6 +133,8 @@ into separate tools so that MCP annotations stay accurate.
 | `runcloud-services` | list services with running state, memory, CPU, version |
 | `runcloud-databases` | `list`, `get`, `grants` |
 | `runcloud-database-users` | `list`, `get` |
+| `runcloud-domains` | `list`, `get` |
+| `runcloud-ssl` | `status`, `method` (basic vs advanced, AutoSSL) |
 
 ### Write
 
@@ -140,6 +142,7 @@ into separate tools so that MCP annotations stay accurate.
 | --- | --- |
 | `runcloud-create-database` | RunCloud cannot rename a database afterwards |
 | `runcloud-create-database-user` | Generates a strong password; returned exactly once |
+| `runcloud-add-domain` | Configures neither DNS nor HTTPS |
 
 ### Destructive — require `confirm=true`
 
@@ -148,9 +151,12 @@ into separate tools so that MCP annotations stay accurate.
 | `runcloud-control-service` | `start`, `stop`, `restart`, `reload`. Only `stop`/`restart` need confirmation |
 | `runcloud-database-grant` | `grant` needs no confirmation; `revoke` does |
 | `runcloud-database-user-password` | Resets a password, breaking apps using the old one |
+| `runcloud-install-ssl` | Let's Encrypt or custom. Prefer the `staging` environment while testing |
 | `runcloud-delete-webapp` | |
 | `runcloud-delete-database` | `deleteUser` defaults to `false` |
 | `runcloud-delete-database-user` | |
+| `runcloud-delete-domain` | Also requires a matching `domainName` |
+| `runcloud-delete-ssl` | HTTPS stops working |
 | `runcloud-delete-server` | Also requires a matching `serverName` |
 
 ## Safety model
@@ -233,11 +239,12 @@ application trusts `X-Forwarded-*` headers so generated URLs use `https`.
 
 ## Coverage
 
-Currently implemented: servers, web applications, services, databases, and database users.
+Currently implemented: servers, web applications (list/get/delete), services, databases, database
+users, domains, and basic SSL.
 
-Not yet implemented: domains, SSL, system users, cron jobs, supervisor, deployments, and script
-installers. These follow the same pattern — a tool class calling `RunCloudClient` — and the client
-and test scaffolding are reusable as-is.
+Not yet implemented: web application creation and settings, advanced per-domain SSL, system users,
+cron jobs, supervisor, deployments and Git, and script installers. These follow the same pattern —
+a tool class calling `RunCloudClient` — and the client and test scaffolding are reusable as-is.
 
 ## Security
 
