@@ -166,7 +166,7 @@ that MCP annotations stay accurate.
 
 | Tool | Actions |
 | --- | --- |
-| `runcloud-servers` | `list`, `get`, `stats` |
+| `runcloud-servers` | `list`, `get`, `stats` (counts), `health` (live RAM/disk/CPU), `hardware` |
 | `runcloud-webapps` | `list` (with search and sorting), `get` |
 | `runcloud-services` | list services with running state, memory, CPU, version |
 | `runcloud-databases` | `list`, `get`, `grants` |

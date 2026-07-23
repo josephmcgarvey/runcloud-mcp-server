@@ -115,6 +115,66 @@ class RunCloudToolsTest extends TestCase
         Http::assertSent(fn ($request): bool => $request->url() === 'https://manage.runcloud.io/api/v3/servers/10101/stats');
     }
 
+    public function test_it_fetches_live_health_and_derives_usage_percentages(): void
+    {
+        Http::fake(['*' => Http::response([
+            'totalMemory' => 3931.70313,
+            'availableMemory' => 2014.23438,
+            'usedMemory' => 1917.46875,
+            'totalDiskSpace' => 83969.62202,
+            'usedDiskSpace' => 51274.48576,
+            'availableDiskSpace' => 32695.13626,
+            'loadAverage' => 0.08,
+            'updated_at' => '44 seconds ago',
+        ])]);
+
+        RunCloudServer::tool(ServersTool::class, ['action' => 'health', 'serverId' => 10101])
+            ->assertOk()
+            ->assertSee('memoryUsedPercent')
+            ->assertSee('48.8')   // 1917.47 / 3931.70
+            ->assertSee('61.1')   // 51274.49 / 83969.62
+            ->assertSee('44 seconds ago');
+
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://manage.runcloud.io/api/v3/servers/10101/health/latest');
+    }
+
+    public function test_health_survives_a_response_with_no_totals(): void
+    {
+        // A zero or missing total must not divide by zero; the percentage is simply null.
+        Http::fake(['*' => Http::response(['loadAverage' => 0.5])]);
+
+        RunCloudServer::tool(ServersTool::class, ['action' => 'health', 'serverId' => 10101])
+            ->assertOk()
+            ->assertHasNoErrors();
+    }
+
+    public function test_it_fetches_hardware_info(): void
+    {
+        Http::fake(['*' => Http::response([
+            'processorName' => 'AMD EPYC 7713 64-Core Processor',
+            'totalCPUCore' => 6,
+            'kernelVersion' => '5.4.0-216-generic',
+            'uptime' => '48h 0m 21s',
+        ])]);
+
+        RunCloudServer::tool(ServersTool::class, ['action' => 'hardware', 'serverId' => 10101])
+            ->assertOk()
+            ->assertSee('EPYC')
+            ->assertSee('48h 0m 21s');
+
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://manage.runcloud.io/api/v3/servers/10101/hardwareinfo');
+    }
+
+    public function test_it_requires_a_server_id_for_the_health_action(): void
+    {
+        Http::fake();
+
+        RunCloudServer::tool(ServersTool::class, ['action' => 'health'])
+            ->assertHasErrors();
+
+        Http::assertNothingSent();
+    }
+
     public function test_it_requires_a_server_id_for_the_get_action(): void
     {
         Http::fake();
