@@ -159,7 +159,7 @@ account on this application should have a strong password.
 
 ## Available tools
 
-Forty-five tools, subject to the configured [profile](#tool-profiles). Read and destructive operations are deliberately split into separate tools so
+Forty-six tools, subject to the configured [profile](#tool-profiles). Read and destructive operations are deliberately split into separate tools so
 that MCP annotations stay accurate.
 
 ### Read-only
@@ -203,6 +203,7 @@ that MCP annotations stay accurate.
 | `runcloud-database-user-password` | Resets a password, breaking apps using the old one |
 | `runcloud-toggle-cron` | Flips state; re-reads the job first to avoid inverting the intent |
 | `runcloud-update-webapp-settings` | Merges over current values; reloads the FPM pool |
+| `runcloud-webapp-stack` | `get`/`set` the web server stack; leaving customnginx discards custom directives |
 | `runcloud-change-php-version` | Applies immediately, no staging step or rollback |
 | `runcloud-system-user-password` | Breaks anything using the old SSH/SFTP password |
 | `runcloud-generate-deployment-key` | Replaces any existing key, breaking deploys using it |
@@ -233,8 +234,8 @@ Set `RUNCLOUD_MCP_PROFILE` in `.env`:
 | Profile | Tools | Approx. context | Allows |
 | --- | --- | --- | --- |
 | `readonly` | 13 | ~4,600 tokens | Nothing that changes anything |
-| `standard` *(default)* | 35 | ~13,200 tokens | Reads, creation, modification, service control |
-| `full` | 45 | ~16,100 tokens | Everything, including deletions |
+| `standard` *(default)* | 36 | ~13,600 tokens | Reads, creation, modification, service control |
+| `full` | 46 | ~16,500 tokens | Everything, including deletions |
 
 `standard` withholds the ten tools that destroy something the API cannot recreate. It still allows
 restarting services, deploying, and changing settings — those are disruptive but recoverable.

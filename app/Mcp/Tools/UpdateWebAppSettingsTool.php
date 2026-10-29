@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Tools;
 
+use App\Mcp\Tools\Concerns\InteractsWithWebAppSettings;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -12,18 +13,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 #[IsDestructive]
 class UpdateWebAppSettingsTool extends RunCloudTool
 {
-    /**
-     * Settings this tool can change, in the order RunCloud documents them.
-     *
-     * @var list<string>
-     */
-    protected const SETTABLE = [
-        'stack', 'stackMode', 'publicPath', 'timezone', 'memoryLimit', 'maxExecutionTime',
-        'maxInputTime', 'maxInputVars', 'postMaxSize', 'uploadMaxFilesize', 'sessionGcMaxlifetime',
-        'allowUrlFopen', 'processManager', 'processManagerMaxChildren', 'processManagerMaxRequests',
-        'openBasedir', 'disableFunctions', 'clickjackingProtection', 'xssProtection',
-        'mimeSniffingProtection',
-    ];
+    use InteractsWithWebAppSettings;
 
     protected string $description = <<<'TEXT'
     Change a web application's PHP and PHP-FPM settings. Pass only the settings you want to change —
@@ -133,7 +123,7 @@ class UpdateWebAppSettingsTool extends RunCloudTool
 
         $changes = [];
 
-        foreach (self::SETTABLE as $key) {
+        foreach (self::FPMNGINX_SETTINGS as $key) {
             if ($request->get($key) !== null) {
                 $changes[$key] = $request->get($key);
             }
@@ -159,13 +149,7 @@ class UpdateWebAppSettingsTool extends RunCloudTool
          */
         $current = $this->client->get("servers/{$serverId}/webapps/{$webappId}/settings");
 
-        $payload = $changes;
-
-        foreach (self::SETTABLE as $key) {
-            if (! array_key_exists($key, $payload) && array_key_exists($key, $current)) {
-                $payload[$key] = $current[$key];
-            }
-        }
+        $payload = $this->mergeFpmNginxSettings($changes, $current);
 
         $result = $this->client->patch("servers/{$serverId}/webapps/{$webappId}/settings/fpmnginx", $payload);
 

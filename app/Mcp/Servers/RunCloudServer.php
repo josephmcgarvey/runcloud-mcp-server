@@ -46,6 +46,7 @@ use App\Mcp\Tools\UpdateDatabaseUserPasswordTool;
 use App\Mcp\Tools\UpdateSystemUserPasswordTool;
 use App\Mcp\Tools\UpdateWebAppSettingsTool;
 use App\Mcp\Tools\WebAppSettingsTool;
+use App\Mcp\Tools\WebAppStackTool;
 use App\Mcp\Tools\WebAppsTool;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Instructions;
@@ -167,6 +168,7 @@ class RunCloudServer extends Server
         ToggleCronJobTool::class,
         CreateSystemUserTool::class,
         UpdateWebAppSettingsTool::class,
+        WebAppStackTool::class,
         ChangePhpVersionTool::class,
         UpdateSystemUserPasswordTool::class,
         GenerateDeploymentKeyTool::class,
