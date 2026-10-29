@@ -6,6 +6,7 @@ use App\Mcp\Tools\AddDomainTool;
 use App\Mcp\Tools\AddFirewallRuleTool;
 use App\Mcp\Tools\ChangePhpVersionTool;
 use App\Mcp\Tools\CloneGitRepositoryTool;
+use App\Mcp\Tools\CloneWebAppTool;
 use App\Mcp\Tools\ControlServiceTool;
 use App\Mcp\Tools\CreateCronJobTool;
 use App\Mcp\Tools\CreateDatabaseTool;
@@ -161,6 +162,7 @@ class RunCloudServer extends Server
         GitDeployScriptTool::class,
         CreateWebAppTool::class,
         CreateWordPressWebAppTool::class,
+        CloneWebAppTool::class,
         CreateDatabaseTool::class,
         CreateDatabaseUserTool::class,
         CreateCronJobTool::class,

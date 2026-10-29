@@ -159,7 +159,7 @@ account on this application should have a strong password.
 
 ## Available tools
 
-Forty-six tools, subject to the configured [profile](#tool-profiles). Read and destructive operations are deliberately split into separate tools so
+Forty-seven tools, subject to the configured [profile](#tool-profiles). Read and destructive operations are deliberately split into separate tools so
 that MCP annotations stay accurate.
 
 ### Read-only
@@ -186,6 +186,7 @@ that MCP annotations stay accurate.
 | --- | --- |
 | `runcloud-create-webapp` | Custom/empty app for Laravel, APIs, static sites |
 | `runcloud-create-wordpress` | Full WordPress install; generates both passwords |
+| `runcloud-clone-webapp` | Copies an app (optionally its database) to a destination server; background, `confirm=true` |
 | `runcloud-create-database` | RunCloud cannot rename a database afterwards |
 | `runcloud-create-database-user` | Generates a strong password; returned exactly once |
 | `runcloud-add-domain` | Configures neither DNS nor HTTPS |
@@ -234,8 +235,8 @@ Set `RUNCLOUD_MCP_PROFILE` in `.env`:
 | Profile | Tools | Approx. context | Allows |
 | --- | --- | --- | --- |
 | `readonly` | 13 | ~4,600 tokens | Nothing that changes anything |
-| `standard` *(default)* | 36 | ~13,600 tokens | Reads, creation, modification, service control |
-| `full` | 46 | ~16,500 tokens | Everything, including deletions |
+| `standard` *(default)* | 37 | ~14,000 tokens | Reads, creation, modification, service control |
+| `full` | 47 | ~16,900 tokens | Everything, including deletions |
 
 `standard` withholds the ten tools that destroy something the API cannot recreate. It still allows
 restarting services, deploying, and changing settings — those are disruptive but recoverable.
