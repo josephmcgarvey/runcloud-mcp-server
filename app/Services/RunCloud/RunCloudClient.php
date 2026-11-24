@@ -3,9 +3,12 @@
 namespace App\Services\RunCloud;
 
 use App\Exceptions\RunCloudException;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Throwable;
 
 /**
  * Thin transport layer over the RunCloud v3 REST API.
@@ -20,6 +23,17 @@ class RunCloudClient
      * RunCloud rejects any perPage above this value.
      */
     public const MAX_PER_PAGE = 40;
+
+    /**
+     * Total attempts per request, including the first.
+     */
+    public const MAX_ATTEMPTS = 3;
+
+    /**
+     * Longest wait honored from a Retry-After header. A longer wait fails fast with the
+     * rate-limit message instead of stalling the MCP tool call.
+     */
+    public const MAX_RATE_LIMIT_WAIT_SECONDS = 10;
 
     /**
      * Credentials RunCloud embeds in ordinary resource payloads.
@@ -139,7 +153,52 @@ class RunCloudClient
             ->acceptJson()
             ->asJson()
             ->timeout($this->timeout)
-            ->retry(2, 250, throw: false);
+            ->retry(
+                self::MAX_ATTEMPTS,
+                fn (int $attempt, Throwable $exception): int => $this->retryDelayInMilliseconds($attempt, $exception),
+                fn (Throwable $exception, PendingRequest $request, ?string $method = null): bool => $this->shouldRetry($exception, $method),
+                throw: false,
+            );
+    }
+
+    /**
+     * Decide whether a failed attempt is safe and worth repeating.
+     *
+     * A 429 is retried for every method because RunCloud rejected it before doing any work. Connection
+     * failures and 5xx responses are retried for GET only: a write that timed out may already have
+     * created the web app or database, and sending it again would duplicate it or fail confusingly.
+     */
+    protected function shouldRetry(Throwable $exception, ?string $method): bool
+    {
+        if ($exception instanceof RequestException && $exception->response->status() === 429) {
+            return $this->rateLimitWaitSeconds($exception->response) <= self::MAX_RATE_LIMIT_WAIT_SECONDS;
+        }
+
+        if (strtoupper((string) $method) !== 'GET') {
+            return false;
+        }
+
+        return $exception instanceof ConnectionException
+            || ($exception instanceof RequestException && $exception->response->serverError());
+    }
+
+    protected function retryDelayInMilliseconds(int $attempt, Throwable $exception): int
+    {
+        if ($exception instanceof RequestException && $exception->response->status() === 429) {
+            return $this->rateLimitWaitSeconds($exception->response) * 1000;
+        }
+
+        return 250 * $attempt;
+    }
+
+    /**
+     * Seconds RunCloud asked us to wait, falling back to one second when it gives no Retry-After.
+     */
+    protected function rateLimitWaitSeconds(Response $response): int
+    {
+        $retryAfter = $response->header('Retry-After');
+
+        return is_numeric($retryAfter) ? max(1, (int) $retryAfter) : 1;
     }
 
     /**

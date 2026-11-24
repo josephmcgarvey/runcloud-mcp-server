@@ -33,11 +33,31 @@ class RunCloudException extends Exception
                 'RunCloud scopes keys per resource type, so check the key\'s enabled permissions '.
                 'under Workspace > Settings > API Key.',
             404 => 'The requested RunCloud resource does not exist.',
-            429 => 'RunCloud rate limit exceeded. Retry after a short delay.',
+            429 => self::rateLimitMessage($response),
             default => $body['message'] ?? "RunCloud API request failed with status {$status}.",
         };
 
         return new self($message, $status, $body['errors'] ?? []);
+    }
+
+    /**
+     * Describe a 429 using the limit headers RunCloud sends, so the agent knows how long to back off.
+     */
+    protected static function rateLimitMessage(Response $response): string
+    {
+        $message = 'RunCloud rate limit exceeded.';
+
+        $limit = $response->header('X-RateLimit-Limit');
+
+        if (is_numeric($limit)) {
+            $message .= " This endpoint allows {$limit} requests per window.";
+        }
+
+        $retryAfter = $response->header('Retry-After');
+
+        return $message.(is_numeric($retryAfter)
+            ? " Retry after {$retryAfter} seconds."
+            : ' Retry after a short delay.');
     }
 
     /**
